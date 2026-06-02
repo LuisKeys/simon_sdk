@@ -9,8 +9,11 @@ class Settings(BaseSettings):
     )
 
     openai_api_key: str | None = None
+    openai_model: str | None = None
     anthropic_api_key: str | None = None
+    anthropic_model: str | None = None
     ollama_host: str = "http://localhost:11434"
+    ollama_model: str | None = None
     default_model: str = "auto"
 
 

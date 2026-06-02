@@ -9,7 +9,10 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
-      "python": "/home/lucho/miniconda3/envs/ai/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
       "envFile": "${workspaceFolder}/.env"
     },
     {
@@ -20,7 +23,10 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
-      "python": "/home/lucho/miniconda3/envs/ai/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
       "envFile": "${workspaceFolder}/.env"
     },
     {
@@ -31,7 +37,10 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
-      "python": "/home/lucho/miniconda3/envs/ai/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
       "envFile": "${workspaceFolder}/.env"
     },
     {
@@ -42,7 +51,10 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
-      "python": "/home/lucho/miniconda3/envs/ai/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
       "envFile": "${workspaceFolder}/.env"
     },
     {
@@ -56,7 +68,10 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
-      "python": "/home/lucho/miniconda3/envs/ai/bin/python",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
       "envFile": "${workspaceFolder}/.env"
     }
   ]

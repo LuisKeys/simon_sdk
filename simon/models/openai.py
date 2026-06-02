@@ -1,4 +1,5 @@
 from simon.models.base import BaseModel
+from simon.config import settings
 
 
 class OpenAIModel(BaseModel):
@@ -15,7 +16,7 @@ class OpenAIModel(BaseModel):
         except ImportError as exc:
             raise RuntimeError("Install openai package to use OpenAIModel.") from exc
 
-        client = AsyncOpenAI()
+        client = AsyncOpenAI(api_key=settings.openai_api_key)
         response = await client.chat.completions.create(
             model=self.model,
             messages=messages,  # type: ignore[arg-type]

@@ -18,7 +18,7 @@ class Agent:
         tools: list[object] | None = None,
     ) -> None:
         self._router = ModelRouter()
-        self._model = self._router.resolve(model)
+        self._model_name = model
         self.memory = InMemoryMemory() if memory else None
         self.tools = ToolRegistry(tools)
         self.knowledge = KnowledgeBase()
@@ -53,9 +53,8 @@ class Agent:
         if context:
             messages.append({"role": "system", "content": context})
 
-        response = await self._model.complete(
-            messages=messages, tools=self.tools.schemas()
-        )
+        model = self._router.resolve(self._model_name, task=prompt)
+        response = await model.complete(messages=messages, tools=self.tools.schemas())
 
         if self.memory:
             await self.memory.add("assistant", response)
