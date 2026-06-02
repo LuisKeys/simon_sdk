@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simon-sdk"
+version = "0.1.0"
+description = "Simon SDK: the simplest way to build AI agents"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{name = "Simon SDK Contributors"}]
+license = {text = "MIT"}
+keywords = ["ai", "agents", "sdk", "education", "python"]
+dependencies = [
+  "pydantic>=2.7.0",
+  "pydantic-settings>=2.3.0",
+  "openai>=1.40.0",
+  "anthropic>=0.34.0",
+  "ollama>=0.3.0",
+  "pypdf>=4.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2.0",
+  "pytest-asyncio>=0.23.7",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["simon*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,80 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.pytest_cache/
+.coverage
+.coverage.*
+.cache/
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.ruff_cache/
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Conda
+.conda/
+conda-meta/
+*.conda
+
+# Environment / local config
+.env
+.env.*
+!.env.example
+.python-version
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / editor
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project-specific generated data (optional)
+# Uncomment if you generate local knowledge indexes or caches
+# data/
+# *.db
+# *.sqlite3

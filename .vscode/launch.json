@@ -1,0 +1,63 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Simon: Basic Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/basic_agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "python": "/home/lucho/miniconda3/envs/ai/bin/python",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Simon: Memory Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/memory_agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "python": "/home/lucho/miniconda3/envs/ai/bin/python",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Simon: Tools Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/tools_agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "python": "/home/lucho/miniconda3/envs/ai/bin/python",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Simon: Knowledge Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/knowledge_agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "python": "/home/lucho/miniconda3/envs/ai/bin/python",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Simon: Pytest",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "-q"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "python": "/home/lucho/miniconda3/envs/ai/bin/python",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}
