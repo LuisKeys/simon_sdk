@@ -50,13 +50,49 @@ class KnowledgeBase:
         return chunks
 
     def _read_file(self, path: Path) -> str:
-        if path.suffix.lower() == ".pdf":
+        ext = path.suffix.lower()
+
+        if ext == ".pdf":
             try:
                 from pypdf import PdfReader
             except ImportError as exc:
                 raise RuntimeError("Install pypdf to ingest PDF files.") from exc
-
             reader = PdfReader(str(path))
             return "\n".join(page.extract_text() or "" for page in reader.pages)
+
+        if ext == ".docx":
+            try:
+                import docx
+            except ImportError as exc:
+                raise RuntimeError("Install python-docx to ingest Word files.") from exc
+            doc = docx.Document(str(path))
+            return "\n".join(p.text for p in doc.paragraphs)
+
+        if ext == ".xlsx":
+            try:
+                import openpyxl
+            except ImportError as exc:
+                raise RuntimeError("Install openpyxl to ingest Excel files.") from exc
+            wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+            lines = []
+            for sheet in wb.worksheets:
+                for row in sheet.iter_rows(values_only=True):
+                    line = "\t".join("" if v is None else str(v) for v in row)
+                    if line.strip():
+                        lines.append(line)
+            return "\n".join(lines)
+
+        if ext == ".pptx":
+            try:
+                from pptx import Presentation
+            except ImportError as exc:
+                raise RuntimeError("Install python-pptx to ingest PowerPoint files.") from exc
+            prs = Presentation(str(path))
+            lines = []
+            for slide in prs.slides:
+                for shape in slide.shapes:
+                    if shape.has_text_frame:
+                        lines.append(shape.text_frame.text)
+            return "\n".join(lines)
 
         return path.read_text(encoding="utf-8", errors="ignore")

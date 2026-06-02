@@ -1,11 +1,17 @@
 import asyncio
 import json
+from pathlib import Path
 from typing import Any
 
 from simon.knowledge import KnowledgeBase
 from simon.memory import InMemoryMemory
 from simon.router import ModelRouter
 from simon.tools import ToolRegistry
+
+_DEFAULT_KNOWLEDGE_DIRS = [
+    Path.home() / "Documents",
+    Path.home() / "Downloads",
+]
 
 
 class Agent:
@@ -16,12 +22,17 @@ class Agent:
         model: str | None = None,
         memory: bool = False,
         tools: list[object] | None = None,
+        knowledge: bool = True,
     ) -> None:
         self._router = ModelRouter()
         self._model_name = model
         self.memory = InMemoryMemory() if memory else None
         self.tools = ToolRegistry(tools)
-        self.knowledge = KnowledgeBase()
+        self.knowledge = KnowledgeBase() if knowledge else None
+        if self.knowledge:
+            for d in _DEFAULT_KNOWLEDGE_DIRS:
+                if d.exists():
+                    self.knowledge.add(str(d))
 
     def run(self, prompt: str) -> str:
         """Synchronous convenience API for beginners."""
@@ -88,6 +99,8 @@ class Agent:
         return str(result)
 
     def _knowledge_context(self, prompt: str) -> str:
+        if not self.knowledge:
+            return ""
         hits = self.knowledge.search(prompt, top_k=2)
         if not hits:
             return ""

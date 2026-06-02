@@ -44,6 +44,20 @@
       "envFile": "${workspaceFolder}/.env"
     },
     {
+      "name": "Simon: Builtin Tools Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/builtin_tools_agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
       "name": "Simon: Knowledge Example",
       "type": "python",
       "request": "launch",
