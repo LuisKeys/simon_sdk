@@ -1,7 +1,6 @@
-import json
-import urllib.parse
 import urllib.request
 
+from simon.config.settings import settings
 from simon.tools.tool import tool
 
 _MAX_BODY = 4000
@@ -9,22 +8,20 @@ _MAX_BODY = 4000
 
 @tool
 def web_search(query: str) -> str:
-    """Search the web using DuckDuckGo and return top results."""
-    encoded = urllib.parse.quote_plus(query)
-    url = f"https://api.duckduckgo.com/?q={encoded}&format=json&no_html=1&skip_disambig=1"
+    """Search the web using OpenAI's built-in web search and return results."""
     try:
-        with urllib.request.urlopen(url, timeout=10) as resp:
-            data = json.loads(resp.read().decode("utf-8", errors="ignore"))
-    except Exception as exc:
-        return f"Search error: {exc}"
+        from openai import OpenAI
+    except ImportError as exc:
+        raise RuntimeError("Install openai package to use web_search.") from exc
 
-    parts = []
-    if data.get("AbstractText"):
-        parts.append(data["AbstractText"])
-    for r in data.get("RelatedTopics", [])[:5]:
-        if isinstance(r, dict) and r.get("Text"):
-            parts.append(r["Text"])
-    return "\n\n".join(parts) if parts else "No results found."
+    client = OpenAI(api_key=settings.openai_api_key)
+    response = client.responses.create(
+        model=settings.openai_model,
+        tools=[{"type": "web_search_preview"}],
+        instructions="You are a web search assistant. Return a concise summary of the top results (3-5 bullet points max). No code examples, no headers, no lengthy explanations.",
+        input=query,
+    )
+    return response.output_text or "No results found."
 
 
 @tool
