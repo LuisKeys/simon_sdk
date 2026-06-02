@@ -56,7 +56,9 @@ class ModelRouter:
         task: str | None = None,
         complex_task: bool | None = None,
     ) -> BaseModel:
-        selected = (model or settings.default_model or "auto").lower()
+        default_selected = (settings.default_model or "auto").lower()
+        force_default_provider = model is None and default_selected != "auto"
+        selected = (model or default_selected).lower()
         is_complex = (
             self._is_complex_task(task) if complex_task is None else complex_task
         )
@@ -75,6 +77,11 @@ class ModelRouter:
             selected.startswith("ollama") or selected.startswith("llama")
         ) and self._has_ollama():
             return OllamaModel(model=settings.ollama_model or "llama3.1")
+
+        if force_default_provider:
+            # When DEFAULT_MODEL is explicitly set (non-auto), do not fallback
+            # to other providers.
+            return EchoModel()
 
         if is_complex:
             # For harder tasks, prioritize online providers when available.

@@ -92,3 +92,25 @@ def test_router_uses_openai_model_from_settings(monkeypatch) -> None:
 
     assert isinstance(model, OpenAIModel)
     assert model.model == "gpt-5.4-mini"
+
+
+def test_router_forces_default_model_provider_when_non_auto(monkeypatch) -> None:
+    monkeypatch.setattr("simon.router.router.settings.default_model", "gpt-5")
+    monkeypatch.setattr("simon.router.router.settings.openai_api_key", "test-key")
+    monkeypatch.setattr("simon.router.router.settings.openai_model", "gpt-5.4-mini")
+    monkeypatch.setattr("simon.router.router.settings.ollama_model", "gemma4:e4b")
+    monkeypatch.setenv("OLLAMA_HOST", "http://localhost:11434")
+
+    model = ModelRouter().resolve(task="simple local task")
+    assert isinstance(model, OpenAIModel)
+
+
+def test_router_forced_default_model_does_not_fallback(monkeypatch) -> None:
+    monkeypatch.setattr("simon.router.router.settings.default_model", "gpt-5")
+    monkeypatch.setattr("simon.router.router.settings.openai_api_key", "")
+    monkeypatch.setattr("simon.router.router.settings.openai_model", "")
+    monkeypatch.setattr("simon.router.router.settings.ollama_model", "gemma4:e4b")
+    monkeypatch.setenv("OLLAMA_HOST", "http://localhost:11434")
+
+    model = ModelRouter().resolve(task="simple local task")
+    assert isinstance(model, EchoModel)
