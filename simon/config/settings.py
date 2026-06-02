@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     ollama_host: str = "http://localhost:11434"
     ollama_model: str | None = None
     default_model: str = "auto"
+    knowledge_store_path: str | None = None
+    embedding_model: str = "text-embedding-3-small"
 
 
 settings = Settings()

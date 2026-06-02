@@ -1,13 +1,21 @@
 from pathlib import Path
 
-from simon.knowledge.retrieval import Retriever
+from simon.config.settings import settings
+from simon.knowledge.embeddings import OpenAIEmbeddings
+from simon.knowledge.retrieval import FileRetriever
 
 
 class KnowledgeBase:
     """Document ingestion + retrieval with hidden implementation details."""
 
-    def __init__(self, chunk_size: int = 500, overlap: int = 50) -> None:
-        self._retriever = Retriever()
+    def __init__(
+        self,
+        chunk_size: int = 500,
+        overlap: int = 50,
+        store_path: str | None = None,
+    ) -> None:
+        path = store_path or settings.knowledge_store_path or ".simon_knowledge"
+        self._retriever = FileRetriever(OpenAIEmbeddings(), path)
         self.chunk_size = chunk_size
         self.overlap = overlap
 
@@ -20,9 +28,10 @@ class KnowledgeBase:
         count = 0
         for file in files:
             text = self._read_file(file)
-            for chunk in self._chunk(text):
-                self._retriever.add_chunk(chunk, source=str(file))
-                count += 1
+            chunks = self._chunk(text)
+            if chunks:
+                self._retriever.add_source(chunks, source=str(file))
+                count += len(chunks)
         return count
 
     def search(self, query: str, top_k: int = 3) -> list[dict[str, str]]:

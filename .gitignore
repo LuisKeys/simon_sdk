@@ -47,6 +47,9 @@ dmypy.json
 .venv/
 venv/
 env/
+
+# Simon local knowledge index/cache
+.simon_knowledge/
 ENV/
 
 # Conda
