@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     default_model: str = "auto"
     knowledge_store_path: str | None = None
     embedding_model: str = "text-embedding-3-small"
+    enable_dir_documents: bool = True
+    enable_dir_downloads: bool = True
+    enable_dir_pictures: bool = False
+    enable_dir_desktop: bool = False
 
 
 settings = Settings()

@@ -3,15 +3,22 @@ import json
 from pathlib import Path
 from typing import Any
 
+from simon.config.settings import settings
 from simon.knowledge import KnowledgeBase
 from simon.memory import InMemoryMemory
 from simon.router import ModelRouter
 from simon.tools import ToolRegistry
 
-_DEFAULT_KNOWLEDGE_DIRS = [
-    Path.home() / "Documents",
-    Path.home() / "Downloads",
-]
+_DIR_FLAGS = {
+    "enable_dir_documents": Path.home() / "Documents",
+    "enable_dir_downloads": Path.home() / "Downloads",
+    "enable_dir_pictures": Path.home() / "Pictures",
+    "enable_dir_desktop": Path.home() / "Desktop",
+}
+
+
+def _enabled_knowledge_dirs() -> list[Path]:
+    return [path for flag, path in _DIR_FLAGS.items() if getattr(settings, flag, False)]
 
 
 class Agent:
@@ -30,7 +37,7 @@ class Agent:
         self.tools = ToolRegistry(tools)
         self.knowledge = KnowledgeBase() if knowledge else None
         if self.knowledge:
-            for d in _DEFAULT_KNOWLEDGE_DIRS:
+            for d in _enabled_knowledge_dirs():
                 if d.exists():
                     self.knowledge.add(str(d))
 

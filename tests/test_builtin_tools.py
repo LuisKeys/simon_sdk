@@ -49,12 +49,12 @@ def test_datetime_now_is_valid_iso():
 
 
 def test_shell_run_echo():
-    result = shell_run(command="echo hello")
+    result = shell_run(command='python -c "print(\'hello\')"')
     assert "hello" in result
 
 
 def test_shell_run_timeout():
-    result = shell_run(command="sleep 30")
+    result = shell_run(command='python -c "import time; time.sleep(30)"')
     assert "timed out" in result.lower()
 
 
