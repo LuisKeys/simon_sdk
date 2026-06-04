@@ -1,25 +1,11 @@
 import asyncio
 import json
-from pathlib import Path
 from typing import Any
 
-from simon.config.settings import settings
 from simon.knowledge import KnowledgeBase
 from simon.memory import InMemoryMemory
 from simon.router import ModelRouter
 from simon.tools import ToolRegistry
-
-_DIR_FLAGS = {
-    "enable_dir_documents": Path.home() / "Documents",
-    "enable_dir_downloads": Path.home() / "Downloads",
-    "enable_dir_pictures": Path.home() / "Pictures",
-    "enable_dir_desktop": Path.home() / "Desktop",
-}
-
-
-def _enabled_knowledge_dirs() -> list[Path]:
-    return [path for flag, path in _DIR_FLAGS.items() if getattr(settings, flag, False)]
-
 
 class Agent:
     """Minimal agent API with optional memory, knowledge, and tools."""
@@ -36,10 +22,6 @@ class Agent:
         self.memory = InMemoryMemory() if memory else None
         self.tools = ToolRegistry(tools)
         self.knowledge = KnowledgeBase() if knowledge else None
-        if self.knowledge:
-            for d in _enabled_knowledge_dirs():
-                if d.exists():
-                    self.knowledge.add(str(d))
 
     def run(self, prompt: str) -> str:
         """Synchronous convenience API for beginners."""
@@ -104,6 +86,12 @@ class Agent:
 
         result: Any = candidate(**args)
         return str(result)
+
+    def add_knowledge(self, path: str) -> int:
+        """Index a file or folder into the knowledge base."""
+        if self.knowledge is None:
+            raise RuntimeError("Agent was created with knowledge=False.")
+        return self.knowledge.add(path)
 
     def _knowledge_context(self, prompt: str) -> str:
         if not self.knowledge:
