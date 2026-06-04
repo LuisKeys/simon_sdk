@@ -1,5 +1,7 @@
 # Simon SDK
 
+![CI](https://github.com/your-org/simon-sdk/actions/workflows/ci.yml/badge.svg)
+
 Simon SDK is the simplest way to build AI agents.
 
 **Primary goal:** build a useful AI agent in fewer than 10 lines of Python.
@@ -13,6 +15,8 @@ Simon SDK is educational, lightweight, and easy to extend. It favors simplicity 
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Provider Configuration](#provider-configuration)
+  - [Knowledge directory flags](#knowledge-directory-flags)
+  - [Routing rules](#routing-rules)
 - [Quick Start](#quick-start)
 - [Examples](#examples)
   - [Basic Agent](#basic-agent)
@@ -21,6 +25,7 @@ Simon SDK is educational, lightweight, and easy to extend. It favors simplicity 
   - [Custom Tools](#custom-tools)
   - [Built-in Tools](#built-in-tools)
 - [Architecture](#architecture)
+- [CI](#ci)
 - [Non-goals (v1)](#non-goals-v1)
 
 ---
@@ -128,7 +133,26 @@ OLLAMA_MODEL=llama3.1             # any model you have pulled locally
 # "claude-..."       → force Anthropic
 # "ollama" / "llama" → force Ollama
 DEFAULT_MODEL=auto
+
+# --- Knowledge base — folders to auto-index (true/false) ---
+ENABLE_DIR_DOCUMENTS=true
+ENABLE_DIR_DOWNLOADS=true
+ENABLE_DIR_PICTURES=false
+ENABLE_DIR_DESKTOP=false
 ```
+
+### Knowledge directory flags
+
+When `knowledge=True` (the default), Simon auto-indexes the directories enabled in `.env`:
+
+| Flag | Default | Directory |
+|---|---|---|
+| `ENABLE_DIR_DOCUMENTS` | `true` | `~/Documents` |
+| `ENABLE_DIR_DOWNLOADS` | `true` | `~/Downloads` |
+| `ENABLE_DIR_PICTURES` | `false` | `~/Pictures` |
+| `ENABLE_DIR_DESKTOP` | `false` | `~/Desktop` |
+
+Only directories that both have their flag set to `true` **and** exist on disk are indexed. This works cross-platform (Windows, macOS, Linux).
 
 ### Routing rules
 
@@ -228,7 +252,7 @@ print(agent.run("What is reinforcement learning about?"))
 - The knowledge base chunks text, generates embeddings, and stores them locally under `.simon_knowledge/`.
 - `knowledge.add()` accepts a **file path** or a **directory path**. Supported formats: `.txt`, `.md`, `.pdf`, `.docx`, `.xlsx`, `.pptx`.
 - At query time, the top-2 matching chunks are injected as a system context message.
-- By default, `Agent()` automatically indexes `~/Documents` and `~/Downloads` if they exist. Pass `knowledge=False` to disable this.
+- Which directories are auto-indexed is controlled per-folder via `.env` flags (see [Provider Configuration](#provider-configuration)). Pass `knowledge=False` to disable indexing entirely.
 
 ---
 
@@ -333,6 +357,12 @@ simon/
 ### Async support
 
 `Agent.run()` is a synchronous convenience wrapper around `Agent.run_async()`. In async contexts (e.g., FastAPI, Jupyter with a running event loop), use `await agent.run_async(prompt)` directly.
+
+---
+
+## CI
+
+Simon runs its test suite on **Ubuntu, macOS, and Windows** via GitHub Actions on every push and pull request. The workflow is defined in [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
 ---
 
