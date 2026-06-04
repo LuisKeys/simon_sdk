@@ -1,7 +1,5 @@
 # Simon SDK
 
-![CI](https://github.com/your-org/simon-sdk/actions/workflows/ci.yml/badge.svg)
-
 Simon SDK is the simplest way to build AI agents.
 
 **Primary goal:** build a useful AI agent in fewer than 10 lines of Python.
