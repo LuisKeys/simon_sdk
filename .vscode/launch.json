@@ -72,6 +72,52 @@
       "envFile": "${workspaceFolder}/.env"
     },
     {
+      "name": "Simon: Parallel Agents Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/parallel_agents.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Simon: Triage Agent Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/triage_agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Simon: Pytest Multi-Agent",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": [
+        "tests/test_multi.py",
+        "-v"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
       "name": "Simon: Pytest",
       "type": "python",
       "request": "launch",
