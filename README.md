@@ -22,9 +22,10 @@ Simon SDK is educational, lightweight, and easy to extend. It favors simplicity 
   - [Knowledge Base](#knowledge-base)
   - [Custom Tools](#custom-tools)
   - [Built-in Tools](#built-in-tools)
+  - [Parallel Agents](#parallel-agents)
+  - [Triage Agent](#triage-agent)
 - [Architecture](#architecture)
-- [CI](#ci)
-- [Non-goals (v1)](#non-goals-v1)
+- [Running the tests](#running-the-tests)
 
 ---
 
@@ -329,15 +330,78 @@ print(agent.run('tool:web_search {"query": "python asyncio tutorial"}'))
 
 ---
 
+### Parallel Agents
+
+**File:** [examples/parallel_agents.py](examples/parallel_agents.py)
+
+```python
+from simon import Agent, AgentGroup
+
+group = AgentGroup(
+    agents={
+        "analyst":   Agent(knowledge=False),
+        "critic":    Agent(knowledge=False),
+        "summarizer": Agent(knowledge=False),
+    }
+)
+
+results = group.run_all("What are the trade-offs of microservices vs a monolith?")
+
+for name, response in results.items():
+    print(f"=== {name.upper()} ===")
+    print(response)
+```
+
+- `AgentGroup` runs all agents **concurrently** with `asyncio.gather` — total latency equals the slowest agent, not the sum.
+- Each agent receives the same prompt and responds independently.
+- Returns a `dict[str, str]` mapping agent name → response.
+- Use `await group.run_all_async(prompt)` in async contexts.
+
+---
+
+### Triage Agent
+
+**File:** [examples/triage_agent.py](examples/triage_agent.py)
+
+```python
+from simon import Agent, TriageAgent
+
+triage = TriageAgent(
+    agents={
+        "code":    Agent(knowledge=False),
+        "math":    Agent(knowledge=False),
+        "writing": Agent(knowledge=False),
+    },
+    descriptions={
+        "code":    "Handles programming questions, debugging, and code reviews.",
+        "math":    "Solves mathematical problems, equations, and proofs.",
+        "writing": "Helps with essays, creative writing, and editing.",
+    },
+)
+
+response = triage.run("Write a Python function that reverses a linked list.")
+print(response)
+```
+
+- A lightweight **router agent** inspects the task and selects the best specialist by name.
+- The original prompt is then forwarded to that specialist, whose response is returned.
+- Agent selection is done via an LLM call — no hard-coded rules or keyword matching.
+- `model=` on `TriageAgent` controls which model the router uses; each specialist can use its own model.
+- Raises `ValueError` with the list of available agent names if the router returns an unrecognized name.
+- Use `await triage.run_async(prompt)` in async contexts.
+
+---
+
 ## Architecture
 
 ```
 simon/
-├── agent/          # Agent — the only required entry point
+├── agent/          # Agent — the single-agent entry point
 ├── config/         # Settings loaded from .env via pydantic-settings
 ├── knowledge/      # Chunking, embedding, and retrieval (numpy-backed)
 ├── memory/         # Base class + InMemoryMemory implementation
 ├── models/         # Provider wrappers: OpenAI, Anthropic, Ollama, Echo
+├── multi/          # Multi-agent: AgentGroup (parallel) + TriageAgent (router)
 ├── router/         # ModelRouter — provider selection logic
 └── tools/
     ├── tool.py     # @tool decorator + ToolRegistry
@@ -346,23 +410,26 @@ simon/
 
 ### Core concepts
 
-1. **`Agent`** — the single public entry point. Wires memory, knowledge, tools, and a model together.
-2. **`Memory`** — pluggable conversation history. Default: `InMemoryMemory` (in-process list). Implement `BaseMemory` to add persistence.
-3. **`KnowledgeBase`** — ingest documents, chunk them, embed with the configured provider, and retrieve by cosine similarity at query time. Index files are stored in `.simon_knowledge/`.
-4. **`@tool`** — a decorator that turns any typed Python function into a callable tool with an auto-generated JSON schema.
-5. **`ModelRouter`** — selects the right provider at runtime based on available API keys, the `DEFAULT_MODEL` env var, and a simple task-complexity heuristic.
+1. **`Agent`** — the single-agent entry point. Wires memory, knowledge, tools, and a model together.
+2. **`AgentGroup`** — runs multiple `Agent` instances in parallel over the same prompt using `asyncio.gather`. Returns `dict[str, str]`.
+3. **`TriageAgent`** — a router agent that selects the right specialist for a task via an LLM call, then delegates the original prompt to that specialist.
+4. **`Memory`** — pluggable conversation history. Default: `InMemoryMemory` (in-process list). Implement `BaseMemory` to add persistence.
+5. **`KnowledgeBase`** — ingest documents, chunk them, embed with the configured provider, and retrieve by cosine similarity at query time. Index files are stored in `.simon_knowledge/`.
+6. **`@tool`** — a decorator that turns any typed Python function into a callable tool with an auto-generated JSON schema.
+7. **`ModelRouter`** — selects the right provider at runtime based on available API keys, the `DEFAULT_MODEL` env var, and a simple task-complexity heuristic.
 
 ### Async support
 
-`Agent.run()` is a synchronous convenience wrapper around `Agent.run_async()`. In async contexts (e.g., FastAPI, Jupyter with a running event loop), use `await agent.run_async(prompt)` directly.
+Every public `run()` method is a synchronous convenience wrapper around its `run_async()` counterpart. In async contexts (e.g., FastAPI, Jupyter with a running event loop), call the async variant directly:
+
+```python
+response  = await agent.run_async(prompt)
+results   = await group.run_all_async(prompt)
+response  = await triage.run_async(prompt)
+```
 
 ---
 
-## CI
-
-Simon runs its test suite on **Ubuntu, macOS, and Windows** via GitHub Actions on every push and pull request. The workflow is defined in [.github/workflows/ci.yml](.github/workflows/ci.yml).
-
----
 
 ## Running the tests
 
@@ -377,11 +444,10 @@ Tests live in `tests/`. They use `pytest-asyncio` for async test cases.
 
 ---
 
-## Non-goals (v1)
+## Non-goals
 
 The following are intentionally out of scope:
 
-- Multi-agent systems and agent orchestration
 - Workflow engines and event buses
 - Distributed execution
 - MCP integration
