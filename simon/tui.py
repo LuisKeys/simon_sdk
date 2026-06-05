@@ -1,6 +1,7 @@
 """Minimal terminal chat interface for Simon SDK — no external dependencies."""
 
 import os
+import re
 import sys
 import termios
 import tty
@@ -15,6 +16,49 @@ _GREEN = "\033[92m"
 _YELLOW = "\033[93m"
 _DIM = "\033[2m"
 _RED = "\033[91m"
+
+def _render_md(text: str) -> str:
+    """Convert a subset of Markdown to ANSI-styled terminal output."""
+    lines = text.split("\n")
+    out: list[str] = []
+    in_code_block = False
+
+    for line in lines:
+        if line.startswith("```"):
+            in_code_block = not in_code_block
+            out.append(f"{_DIM}{'─' * 40}{_RESET}" if in_code_block else f"{_DIM}{'─' * 40}{_RESET}")
+            continue
+
+        if in_code_block:
+            out.append(f"{_DIM}{line}{_RESET}")
+            continue
+
+        # Headers
+        if line.startswith("### "):
+            out.append(f"{_BOLD}{_DIM}{line[4:]}{_RESET}")
+            continue
+        if line.startswith("## "):
+            out.append(f"{_BOLD}{line[3:]}{_RESET}")
+            continue
+        if line.startswith("# "):
+            out.append(f"{_BOLD}{_YELLOW}{line[2:]}{_RESET}")
+            continue
+
+        # Bullet lists
+        if re.match(r"^(\s*)[-*] ", line):
+            line = re.sub(r"^(\s*)[-*] ", r"\1• ", line)
+
+        # Inline: **bold** or __bold__
+        line = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: f"{_BOLD}{m.group(1) or m.group(2)}{_RESET}", line)
+        # Inline: *italic* or _italic_ (single, not preceded/followed by word char)
+        line = re.sub(r"(?<!\w)\*(?!\s)(.+?)(?<!\s)\*(?!\w)|(?<!\w)_(?!\s)(.+?)(?<!\s)_(?!\w)", lambda m: f"{_DIM}{m.group(1) or m.group(2)}{_RESET}", line)
+        # Inline: `code`
+        line = re.sub(r"`([^`]+)`", lambda m: f"{_CYAN}{m.group(1)}{_RESET}", line)
+
+        out.append(line)
+
+    return "\n".join(out)
+
 
 _EXIT_COMMANDS = {"/quit"}
 _CLEAR_COMMANDS = {"/clear"}
@@ -157,7 +201,8 @@ def chat(
 
             try:
                 response: AgentResponse = agent.run(user_input)
-                print(f"\n{_GREEN}{_BOLD}[{agent.name}]{_RESET} {response.text}\n")
+                rendered = _render_md(response.text)
+                print(f"\n{_GREEN}{_BOLD}[{agent.name}]{_RESET} {rendered}\n")
                 if response.usage:
                     u = response.usage
                     print(
