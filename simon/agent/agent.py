@@ -22,7 +22,11 @@ class Agent:
         memory: bool = False,
         tools: list[object] | None = None,
         knowledge: bool = True,
+        name: str = "Simon",
+        system_prompt: str | None = None,
     ) -> None:
+        self.name = name
+        self.system_prompt = system_prompt
         self._router = ModelRouter()
         self._model_name = model
         self.memory = InMemoryMemory() if memory else None
@@ -52,6 +56,9 @@ class Agent:
             messages = await self.memory.list()
         else:
             messages = [{"role": "user", "content": prompt}]
+
+        if self.system_prompt:
+            messages = [{"role": "system", "content": self.system_prompt}] + messages
 
         tool_response = await self._maybe_call_tool(prompt)
         if tool_response is not None:

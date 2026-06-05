@@ -86,6 +86,20 @@
       "envFile": "${workspaceFolder}/.env"
     },
     {
+      "name": "Simon: Chat TUI",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/chat_tui.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
       "name": "Simon: Triage Agent Example",
       "type": "python",
       "request": "launch",
