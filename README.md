@@ -24,6 +24,8 @@ Simon SDK is educational, lightweight, and easy to extend. It favors simplicity 
   - [Built-in Tools](#built-in-tools)
   - [Parallel Agents](#parallel-agents)
   - [Triage Agent](#triage-agent)
+  - [Chat TUI](#chat-tui)
+- [Structured Responses and Token Usage](#structured-responses-and-token-usage)
 - [Architecture](#architecture)
 - [Running the tests](#running-the-tests)
 
@@ -138,6 +140,10 @@ ENABLE_DIR_DOCUMENTS=true
 ENABLE_DIR_DOWNLOADS=true
 ENABLE_DIR_PICTURES=false
 ENABLE_DIR_DESKTOP=false
+
+# --- Logging (disabled by default) ---
+# SIMON_LOGGING_ENABLED=true
+# SIMON_LOG_LEVEL=INFO   # DEBUG | INFO | WARNING
 ```
 
 ### Knowledge directory flags
@@ -392,17 +398,64 @@ print(response)
 
 ---
 
+### Chat TUI
+
+**File:** [examples/chat_tui.py](examples/chat_tui.py)
+
+```python
+from simon import Agent, chat
+
+agent = Agent(
+    name="Luke",
+    memory=True,
+    system_prompt="You are Luke, an expert chef...",
+)
+
+chat(agent=agent)
+```
+
+- `chat()` launches a minimal terminal UI built entirely on Python's standard library — no external dependencies.
+- Renders a subset of Markdown in the terminal: **bold**, *italic*, `inline code`, fenced code blocks, headers, and bullet lists — all converted to ANSI-styled output.
+- Supports multi-line input (Shift+Enter for newlines) and clean single-key shortcuts (`q` or `Ctrl+C` to quit).
+- Pass any `Agent` instance: memory, tools, knowledge base, and system prompts all work transparently inside the TUI.
+
+---
+
+## Structured Responses and Token Usage
+
+`agent.run()` now returns an `AgentResponse` object instead of a plain string.
+
+```python
+from simon import Agent
+
+agent = Agent()
+response = agent.run("Explain gradient descent in one sentence.")
+
+print(response)            # str() returns the text, so existing code is unchanged
+print(response.text)       # same as above, explicit
+print(response.usage)      # Usage(input_tokens=..., output_tokens=..., total_tokens=...)
+```
+
+- `AgentResponse.text` — the assistant's reply.
+- `AgentResponse.usage` — a `Usage` dataclass with `input_tokens`, `output_tokens`, and `total_tokens`. Returns `None` for providers that do not report usage (Ollama, Echo).
+- `__str__` is implemented, so passing a response directly to `print()` or string formatting works without changes to existing code.
+- Structured logging is opt-in via `.env`. Set `SIMON_LOGGING_ENABLED=true` and optionally `SIMON_LOG_LEVEL=DEBUG` (or `INFO` / `WARNING`). Each `run()` call logs model name, latency, and token counts at the chosen level.
+
+---
+
 ## Architecture
 
 ```
 simon/
 ├── agent/          # Agent — the single-agent entry point
+│   └── response.py # AgentResponse + Usage dataclasses
 ├── config/         # Settings loaded from .env via pydantic-settings
 ├── knowledge/      # Chunking, embedding, and retrieval (numpy-backed)
 ├── memory/         # Base class + InMemoryMemory implementation
 ├── models/         # Provider wrappers: OpenAI, Anthropic, Ollama, Echo
 ├── multi/          # Multi-agent: AgentGroup (parallel) + TriageAgent (router)
 ├── router/         # ModelRouter — provider selection logic
+├── tui.py          # Terminal chat UI with Markdown rendering (stdlib only)
 └── tools/
     ├── tool.py     # @tool decorator + ToolRegistry
     └── builtin/    # datetime_now, fs_*, shell_run, web_search, http_get
@@ -452,5 +505,4 @@ The following are intentionally out of scope:
 - Distributed execution
 - MCP integration
 - Docker / Kubernetes requirements
-- GUI / TUI layers
 - Enterprise features (auth, RBAC, audit logs, …)
