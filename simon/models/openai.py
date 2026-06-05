@@ -1,3 +1,4 @@
+from simon.agent.response import AgentResponse, Usage
 from simon.models.base import BaseModel
 from simon.config import settings
 
@@ -10,7 +11,7 @@ class OpenAIModel(BaseModel):
         self,
         messages: list[dict[str, str]],
         tools: list[dict[str, object]] | None = None,
-    ) -> str:
+    ) -> AgentResponse:
         try:
             from openai import AsyncOpenAI
         except ImportError as exc:
@@ -22,4 +23,12 @@ class OpenAIModel(BaseModel):
             messages=messages,  # type: ignore[arg-type]
             tools=[{"type": "function", "function": t} for t in (tools or [])],
         )
-        return response.choices[0].message.content or ""
+        text = response.choices[0].message.content or ""
+        usage = None
+        if response.usage:
+            usage = Usage(
+                input_tokens=response.usage.prompt_tokens,
+                output_tokens=response.usage.completion_tokens,
+                total_tokens=response.usage.total_tokens,
+            )
+        return AgentResponse(text=text, usage=usage)

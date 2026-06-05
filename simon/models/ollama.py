@@ -1,3 +1,4 @@
+from simon.agent.response import AgentResponse
 from simon.models.base import BaseModel
 
 
@@ -9,7 +10,7 @@ class OllamaModel(BaseModel):
         self,
         messages: list[dict[str, str]],
         tools: list[dict[str, object]] | None = None,
-    ) -> str:
+    ) -> AgentResponse:
         _ = tools
         try:
             from ollama import AsyncClient
@@ -19,4 +20,4 @@ class OllamaModel(BaseModel):
         client = AsyncClient()
         response = await client.chat(model=self.model, messages=messages)
         msg = response.get("message", {})
-        return str(msg.get("content", ""))
+        return AgentResponse(text=str(msg.get("content", "")))

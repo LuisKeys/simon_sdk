@@ -1,11 +1,17 @@
 import asyncio
 import json
+import logging
+import time
 from typing import Any
 
+from simon.agent.response import AgentResponse, Usage
 from simon.knowledge import KnowledgeBase
 from simon.memory import InMemoryMemory
 from simon.router import ModelRouter
 from simon.tools import ToolRegistry
+
+logger = logging.getLogger("simon.agent")
+
 
 class Agent:
     """Minimal agent API with optional memory, knowledge, and tools."""
@@ -23,7 +29,7 @@ class Agent:
         self.tools = ToolRegistry(tools)
         self.knowledge = KnowledgeBase() if knowledge else None
 
-    def run(self, prompt: str) -> str:
+    def run(self, prompt: str) -> AgentResponse:
         """Synchronous convenience API for beginners."""
 
         try:
@@ -36,7 +42,11 @@ class Agent:
                 raise
         return asyncio.run(self.run_async(prompt))
 
-    async def run_async(self, prompt: str) -> str:
+    async def run_async(self, prompt: str) -> AgentResponse:
+        t0 = time.perf_counter()
+        model = self._router.resolve(self._model_name, task=prompt)
+        logger.debug("run started | model=%s prompt_len=%d", type(model).__name__, len(prompt))
+
         if self.memory:
             await self.memory.add("user", prompt)
             messages = await self.memory.list()
@@ -47,17 +57,30 @@ class Agent:
         if tool_response is not None:
             if self.memory:
                 await self.memory.add("assistant", tool_response)
-            return tool_response
+            elapsed = time.perf_counter() - t0
+            logger.info("run completed (tool) | latency=%.2fs", elapsed)
+            return AgentResponse(text=tool_response)
 
         context = self._knowledge_context(prompt)
         if context:
             messages.append({"role": "system", "content": context})
 
-        model = self._router.resolve(self._model_name, task=prompt)
         response = await model.complete(messages=messages, tools=self.tools.schemas())
 
         if self.memory:
-            await self.memory.add("assistant", response)
+            await self.memory.add("assistant", response.text)
+
+        elapsed = time.perf_counter() - t0
+        if response.usage:
+            logger.info(
+                "run completed | latency=%.2fs input_tokens=%d output_tokens=%d total=%d",
+                elapsed,
+                response.usage.input_tokens,
+                response.usage.output_tokens,
+                response.usage.total_tokens,
+            )
+        else:
+            logger.info("run completed | latency=%.2fs", elapsed)
 
         return response
 

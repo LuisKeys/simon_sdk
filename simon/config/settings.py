@@ -1,3 +1,5 @@
+import logging
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +23,15 @@ class Settings(BaseSettings):
     enable_dir_downloads: bool = True
     enable_dir_pictures: bool = False
     enable_dir_desktop: bool = False
+    simon_logging_enabled: bool = False
+    simon_log_level: str = "INFO"
+
+    def model_post_init(self, __context: object) -> None:
+        if self.simon_logging_enabled:
+            logging.basicConfig(
+                level=getattr(logging, self.simon_log_level.upper(), logging.INFO),
+                format="%(name)s | %(message)s",
+            )
 
 
 settings = Settings()

@@ -1,5 +1,6 @@
 import pytest
 from simon import Agent, AgentGroup, TriageAgent
+from simon.agent.response import AgentResponse
 
 
 def _no_provider(monkeypatch):
@@ -26,8 +27,8 @@ def test_agent_group_run_all_returns_all_names(monkeypatch):
     results = group.run_all("ping")
     assert set(results.keys()) == {"a", "b", "c"}
     for v in results.values():
-        assert isinstance(v, str)
-        assert len(v) > 0
+        assert isinstance(v, AgentResponse)
+        assert len(v.text) > 0
 
 
 def test_agent_group_empty_prompt(monkeypatch):
@@ -71,13 +72,13 @@ def test_triage_run_returns_string(monkeypatch):
 
     # Force the router to always pick "math"
     async def fake_route(_prompt):
-        return "math"
+        return AgentResponse(text="math")
 
     triage._router_agent.run_async = fake_route
 
     result = triage.run("What is 2 + 2?")
-    assert isinstance(result, str)
-    assert len(result) > 0
+    assert isinstance(result, AgentResponse)
+    assert len(result.text) > 0
 
 
 def test_triage_unknown_agent_raises(monkeypatch):
@@ -89,7 +90,7 @@ def test_triage_unknown_agent_raises(monkeypatch):
     triage = TriageAgent(agents=agents, descriptions=descriptions)
 
     async def fake_route(_prompt):
-        return "nonexistent"
+        return AgentResponse(text="nonexistent")
 
     triage._router_agent.run_async = fake_route
 

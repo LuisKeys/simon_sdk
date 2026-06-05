@@ -9,14 +9,14 @@ class AgentGroup:
     def __init__(self, agents: dict[str, Agent]) -> None:
         self.agents = agents
 
-    async def run_all_async(self, prompt: str) -> dict[str, str]:
+    async def run_all_async(self, prompt: str) -> dict[str, "AgentResponse"]:
         names = list(self.agents.keys())
         responses = await asyncio.gather(
             *[self.agents[n].run_async(prompt) for n in names]
         )
         return dict(zip(names, responses))
 
-    def run_all(self, prompt: str) -> dict[str, str]:
+    def run_all(self, prompt: str) -> dict[str, "AgentResponse"]:
         try:
             asyncio.get_running_loop()
             raise RuntimeError(

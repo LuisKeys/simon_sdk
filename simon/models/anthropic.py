@@ -1,3 +1,4 @@
+from simon.agent.response import AgentResponse, Usage
 from simon.models.base import BaseModel
 
 
@@ -9,7 +10,7 @@ class AnthropicModel(BaseModel):
         self,
         messages: list[dict[str, str]],
         tools: list[dict[str, object]] | None = None,
-    ) -> str:
+    ) -> AgentResponse:
         try:
             from anthropic import AsyncAnthropic
         except ImportError as exc:
@@ -30,4 +31,10 @@ class AnthropicModel(BaseModel):
         for block in response.content:
             if getattr(block, "type", "") == "text":
                 text_parts.append(getattr(block, "text", ""))
-        return "\n".join(text_parts).strip()
+        text = "\n".join(text_parts).strip()
+        usage = Usage(
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+            total_tokens=response.usage.input_tokens + response.usage.output_tokens,
+        )
+        return AgentResponse(text=text, usage=usage)

@@ -37,9 +37,10 @@ class TriageAgent:
         lines += ["", f"Task: {task}", "", "Agent name:"]
         return "\n".join(lines)
 
-    async def run_async(self, prompt: str) -> str:
+    async def run_async(self, prompt: str) -> "AgentResponse":
+        from simon.agent.response import AgentResponse
         routing_prompt = self._routing_prompt(prompt)
-        chosen = (await self._router_agent.run_async(routing_prompt)).strip()
+        chosen = (await self._router_agent.run_async(routing_prompt)).text.strip()
 
         # Tolerate minor LLM formatting (trailing punctuation, mixed case)
         chosen_clean = chosen.strip(".,;:!? \t\n")
@@ -54,7 +55,7 @@ class TriageAgent:
 
         return await self.agents[match].run_async(prompt)
 
-    def run(self, prompt: str) -> str:
+    def run(self, prompt: str) -> "AgentResponse":
         try:
             asyncio.get_running_loop()
             raise RuntimeError(
