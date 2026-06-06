@@ -9,6 +9,7 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       },
@@ -23,6 +24,7 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       },
@@ -37,6 +39,7 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       },
@@ -51,6 +54,7 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       },
@@ -65,6 +69,7 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       },
@@ -79,6 +84,7 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       },
@@ -93,6 +99,7 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       },
@@ -107,6 +114,7 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       },
@@ -125,6 +133,7 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       },
@@ -142,6 +151,7 @@
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
       "env": {
         "PYTHONPATH": "${workspaceFolder}"
       },

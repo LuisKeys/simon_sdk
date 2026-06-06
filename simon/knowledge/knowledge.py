@@ -1,8 +1,6 @@
 from pathlib import Path
 
 from simon.config.settings import settings
-from simon.knowledge.embeddings import OpenAIEmbeddings
-from simon.knowledge.retrieval import FileRetriever
 
 
 class KnowledgeBase:
@@ -14,10 +12,17 @@ class KnowledgeBase:
         overlap: int = 50,
         store_path: str | None = None,
     ) -> None:
-        path = store_path or settings.knowledge_store_path or ".simon_knowledge"
-        self._retriever = FileRetriever(OpenAIEmbeddings(), path)
+        self._store_path = store_path or settings.knowledge_store_path or ".simon_knowledge"
+        self._retriever = None
         self.chunk_size = chunk_size
         self.overlap = overlap
+
+    def _get_retriever(self):
+        if self._retriever is None:
+            from simon.knowledge.embeddings import default_embeddings
+            from simon.knowledge.retrieval import FileRetriever
+            self._retriever = FileRetriever(default_embeddings(), self._store_path)
+        return self._retriever
 
     def add(self, path: str) -> int:
         p = Path(path)
@@ -30,12 +35,12 @@ class KnowledgeBase:
             text = self._read_file(file)
             chunks = self._chunk(text)
             if chunks:
-                self._retriever.add_source(chunks, source=str(file))
+                self._get_retriever().add_source(chunks, source=str(file))
                 count += len(chunks)
         return count
 
     def search(self, query: str, top_k: int = 3) -> list[dict[str, str]]:
-        return self._retriever.search(query, top_k=top_k)
+        return self._get_retriever().search(query, top_k=top_k)
 
     def _chunk(self, text: str) -> list[str]:
         if not text.strip():

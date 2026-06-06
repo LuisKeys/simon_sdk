@@ -78,11 +78,6 @@ class ModelRouter:
         ) and self._has_ollama():
             return OllamaModel(model=settings.ollama_model or "llama3.1")
 
-        if force_default_provider:
-            # When DEFAULT_MODEL is explicitly set (non-auto), do not fallback
-            # to other providers.
-            return EchoModel()
-
         if is_complex:
             # For harder tasks, prioritize online providers when available.
             if self._has_openai():
