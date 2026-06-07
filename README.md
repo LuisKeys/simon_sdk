@@ -25,6 +25,9 @@ Simon SDK is educational, lightweight, and easy to extend. It favors simplicity 
   - [Parallel Agents](#parallel-agents)
   - [Triage Agent](#triage-agent)
   - [Chat TUI](#chat-tui)
+  - [Persistent Memory](#persistent-memory)
+- [Reliability — Retry and Timeout](#reliability--retry-and-timeout)
+- [CLI](#cli)
 - [Structured Responses and Token Usage](#structured-responses-and-token-usage)
 - [Architecture](#architecture)
 - [Running the tests](#running-the-tests)
@@ -249,6 +252,7 @@ print(agent.run("What did I say my favorite topic is?"))
 - `memory=True` activates the in-memory conversation history.
 - Every turn (user message + assistant response) is appended and sent back on each subsequent call.
 - Memory lives for the lifetime of the `Agent` object; it is not persisted to disk.
+- For persistence across runs, use [`JSONFileMemory`](#persistent-memory).
 
 ---
 
@@ -458,6 +462,78 @@ chat(agent=agent)
 
 ---
 
+### Persistent Memory
+
+**File:** [examples/persistent_memory_agent.py](examples/persistent_memory_agent.py)
+
+```python
+from simon import Agent, JSONFileMemory
+
+memory = JSONFileMemory("robotics_chat.json")
+agent = Agent(memory=memory)
+
+print(agent.run("What did I say my favorite topic is?"))
+agent.run("My favorite topic is robotics.")
+```
+
+- `JSONFileMemory` stores the full conversation in a human-readable JSON file under `.simon_chats/`.
+- Just pass a **filename** — the directory is always `.simon_chats/` regardless of what you type.
+- Run the script twice: the second run picks up exactly where the first left off.
+- The file is a plain JSON list of `{"role", "content"}` objects — open it in any editor, version it with git (add `.simon_chats/` to `.gitignore` to keep it local), or delete it to start fresh.
+- `memory=` on `Agent` accepts `True` (in-memory), `False` (disabled), or any `BaseMemory` instance:
+
+```python
+# In-memory (default, not persisted)
+agent = Agent(memory=True)
+
+# Persistent, named conversation
+agent = Agent(memory=JSONFileMemory("support.json"))
+```
+
+---
+
+### Reliability — Retry and Timeout
+
+Simon automatically retries transient model failures (rate limits, 5xx errors, timeouts) with exponential backoff. This is enabled by default and requires no code changes.
+
+Configure it via `.env`:
+
+```dotenv
+SIMON_MAX_RETRIES=2         # extra attempts after the first try (default: 2)
+SIMON_REQUEST_TIMEOUT=60    # seconds per attempt (default: 60)
+SIMON_RETRY_BASE_DELAY=0.5  # seconds; doubles each retry (default: 0.5)
+```
+
+Set `SIMON_MAX_RETRIES=0` to disable retries entirely.
+
+---
+
+### CLI
+
+Simon ships with a command-line interface. After installation (`pip install -e .`), the `simon` command is available:
+
+```bash
+# Start an interactive terminal chat
+simon chat
+
+# Ask a single question and print the answer
+simon ask "What is gradient descent?"
+
+# Index a file or folder into the knowledge base
+simon index ./docs/
+
+# Force a specific provider for any command
+simon --model OPENAI_MODEL ask "Summarize this in one sentence."
+```
+
+| Command | Description |
+|---|---|
+| `simon chat` | Launches the interactive terminal UI |
+| `simon ask "<prompt>"` | Single prompt, prints response, exits |
+| `simon index <path>` | Indexes a file or directory into the knowledge base |
+
+---
+
 ## Structured Responses and Token Usage
 
 `agent.run()` now returns an `AgentResponse` object instead of a plain string.
@@ -486,11 +562,13 @@ print(response.usage)      # Usage(input_tokens=..., output_tokens=..., total_to
 simon/
 ├── agent/          # Agent — the single-agent entry point
 │   └── response.py # AgentResponse + Usage dataclasses
+├── cli.py          # `simon` CLI entry point (chat / ask / index)
 ├── config/         # Settings loaded from .env via pydantic-settings
 ├── knowledge/      # Chunking, embedding, and retrieval (numpy-backed)
-├── memory/         # Base class + InMemoryMemory implementation
+├── memory/         # BaseMemory, InMemoryMemory, JSONFileMemory
 ├── models/         # Provider wrappers: OpenAI, Anthropic, Ollama, Echo
 ├── multi/          # Multi-agent: AgentGroup (parallel) + TriageAgent (router)
+├── reliability.py  # with_retry — exponential backoff + per-attempt timeout
 ├── router/         # ModelRouter — provider selection logic
 ├── tui.py          # Terminal chat UI with Markdown rendering (stdlib only)
 └── tools/
@@ -503,7 +581,7 @@ simon/
 1. **`Agent`** — the single-agent entry point. Wires memory, knowledge, tools, and a model together.
 2. **`AgentGroup`** — runs multiple `Agent` instances in parallel over the same prompt using `asyncio.gather`. Returns `dict[str, str]`.
 3. **`TriageAgent`** — a router agent that selects the right specialist for a task via an LLM call, then delegates the original prompt to that specialist.
-4. **`Memory`** — pluggable conversation history. Default: `InMemoryMemory` (in-process list). Implement `BaseMemory` to add persistence.
+4. **`Memory`** — pluggable conversation history. `InMemoryMemory` (default, in-process list) or `JSONFileMemory` (persisted to `.simon_chats/<name>.json`). Implement `BaseMemory` to add your own backend.
 5. **`KnowledgeBase`** — ingest documents, chunk them, embed with the provider set via `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL`, and retrieve by cosine similarity at query time. Index files are stored in `.simon_knowledge/`.
 6. **`@tool`** — a decorator that turns any typed Python function into a callable tool with an auto-generated JSON schema.
 7. **`ModelRouter`** — selects the right provider at runtime based on available API keys, the `DEFAULT_MODEL` env var, and a simple task-complexity heuristic.
