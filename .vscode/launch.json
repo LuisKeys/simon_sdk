@@ -1,4 +1,4 @@
-{
+ {
   "version": "0.2.0",
   "configurations": [
     {
@@ -96,6 +96,21 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/examples/chat_tui.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Simon: Persistent Memory Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/persistent_memory_agent.py",
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
       "justMyCode": true,

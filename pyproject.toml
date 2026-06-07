@@ -24,6 +24,9 @@ dependencies = [
   "numpy>=1.26",
 ]
 
+[project.scripts]
+simon = "simon.cli:main"
+
 [project.optional-dependencies]
 dev = [
   "pytest>=8.2.0",

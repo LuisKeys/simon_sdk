@@ -6,11 +6,25 @@ from typing import Any
 
 from simon.agent.response import AgentResponse, Usage
 from simon.knowledge import KnowledgeBase
-from simon.memory import InMemoryMemory
+from simon.memory import BaseMemory, InMemoryMemory
+from simon.config import settings
+from simon.reliability import with_retry
 from simon.router import ModelRouter
 from simon.tools import ToolRegistry
 
 logger = logging.getLogger("simon.agent")
+
+
+def _enabled_knowledge_dirs() -> list:
+    from pathlib import Path
+
+    mapping = [
+        (settings.enable_dir_documents, Path.home() / "Documents"),
+        (settings.enable_dir_downloads, Path.home() / "Downloads"),
+        (settings.enable_dir_pictures, Path.home() / "Pictures"),
+        (settings.enable_dir_desktop, Path.home() / "Desktop"),
+    ]
+    return [path for enabled, path in mapping if enabled]
 
 
 class Agent:
@@ -19,7 +33,7 @@ class Agent:
     def __init__(
         self,
         model: str | None = None,
-        memory: bool = False,
+        memory: bool | BaseMemory = False,
         tools: list[object] | None = None,
         knowledge: bool = True,
         name: str = "Simon",
@@ -29,7 +43,12 @@ class Agent:
         self.system_prompt = system_prompt
         self._router = ModelRouter()
         self._model_name = model
-        self.memory = InMemoryMemory() if memory else None
+        if isinstance(memory, BaseMemory):
+            self.memory: BaseMemory | None = memory
+        elif memory:
+            self.memory = InMemoryMemory()
+        else:
+            self.memory = None
         self.tools = ToolRegistry(tools)
         self.knowledge = KnowledgeBase() if knowledge else None
 
@@ -72,7 +91,12 @@ class Agent:
         if context:
             messages.append({"role": "system", "content": context})
 
-        response = await model.complete(messages=messages, tools=self.tools.schemas())
+        response = await with_retry(
+            lambda: model.complete(messages=messages, tools=self.tools.schemas()),
+            retries=settings.simon_max_retries,
+            base_delay=settings.simon_retry_base_delay,
+            timeout=settings.simon_request_timeout,
+        )
 
         if self.memory:
             await self.memory.add("assistant", response.text)

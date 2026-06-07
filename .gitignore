@@ -50,6 +50,9 @@ env/
 
 # Simon local knowledge index/cache
 .simon_knowledge/
+
+# Simon persistent chat history
+.simon_chats/
 ENV/
 
 # Conda

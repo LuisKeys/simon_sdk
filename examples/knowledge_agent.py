@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     agent = Agent()
     chunks = agent.knowledge.add(
-        str(paper_path), force=True
+        str(paper_path)
     )  # returns number of new chunks indexed
     if chunks:
         print(f"Indexed {chunks} chunks from {paper_path.name}\n")

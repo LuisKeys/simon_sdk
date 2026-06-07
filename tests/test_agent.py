@@ -1,5 +1,27 @@
-from simon import Agent
+from simon import Agent, JSONFileMemory
 from simon.agent.response import AgentResponse
+
+
+def _force_echo(monkeypatch) -> None:
+    monkeypatch.setattr("simon.router.router.settings.openai_api_key", "")
+    monkeypatch.setattr("simon.router.router.settings.openai_model", "")
+    monkeypatch.setattr("simon.router.router.settings.anthropic_api_key", "")
+    monkeypatch.setattr("simon.router.router.settings.anthropic_model", "")
+    monkeypatch.setattr("simon.router.router.settings.ollama_model", "")
+    monkeypatch.delenv("OLLAMA_HOST", raising=False)
+
+
+def test_accepts_custom_memory_instance(monkeypatch, tmp_path) -> None:
+    _force_echo(monkeypatch)
+    monkeypatch.setattr("simon.memory.jsonfile._CHATS_DIR", tmp_path / ".simon_chats")
+
+    mem = JSONFileMemory("conv.json")
+    agent = Agent(memory=mem, knowledge=False)
+    assert agent.memory is mem
+
+    agent.run("hello there")
+    # The custom memory recorded both user and assistant turns and persisted.
+    assert (tmp_path / ".simon_chats" / "conv.json").exists()
 
 
 def test_agent_creation(monkeypatch) -> None:

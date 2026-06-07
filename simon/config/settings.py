@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     enable_dir_desktop: bool = False
     simon_logging_enabled: bool = False
     simon_log_level: str = "INFO"
+    simon_max_retries: int = 2
+    simon_request_timeout: float = 60.0
+    simon_retry_base_delay: float = 0.5
 
     def model_post_init(self, __context: object) -> None:
         if self.simon_logging_enabled:
