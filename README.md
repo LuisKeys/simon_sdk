@@ -26,6 +26,7 @@ Simon SDK is educational, lightweight, and easy to extend. It favors simplicity 
   - [Triage Agent](#triage-agent)
   - [Chat TUI](#chat-tui)
   - [Persistent Memory](#persistent-memory)
+  - [MCP Agent](#mcp-agent)
 - [Reliability — Retry and Timeout](#reliability--retry-and-timeout)
 - [CLI](#cli)
 - [Structured Responses and Token Usage](#structured-responses-and-token-usage)
@@ -64,6 +65,12 @@ Simon SDK is educational, lightweight, and easy to extend. It favors simplicity 
 |---|---|
 | `pytest` ≥ 8.2 | Test runner |
 | `pytest-asyncio` ≥ 0.23 | Async test support |
+
+**MCP extras** (installed with `[mcp]`):
+
+| Package | Purpose |
+|---|---|
+| `mcp` ≥ 1.0 | MCP client/server support |
 
 **Optional external services** (at least one is needed for real LLM responses):
 
@@ -105,6 +112,12 @@ pip install -e .
 
 ```bash
 pip install -e ".[dev]"
+```
+
+### Option D — pip with MCP extras
+
+```bash
+pip install -e ".[mcp]"
 ```
 
 ---
@@ -462,6 +475,45 @@ chat(agent=agent)
 
 ---
 
+### MCP Agent
+
+**File:** [examples/mcp_agent.py](examples/mcp_agent.py)
+
+`MCPClient` connects to any MCP server via stdio, lists its tools, and returns them as standard Simon `Tool` objects — ready to pass directly to `Agent(tools=[...])`.
+
+```python
+from simon import Agent, MCPClient
+
+# Point to any MCP server command
+client = MCPClient(["python", "simon/tools/builtin/mcp_example_server.py"])
+tools = client.get_tools()
+
+print(f"Tools loaded from MCP server: {[t.name for t in tools]}")
+
+agent = Agent(tools=tools)
+response = agent.run("Use the add_numbers tool to compute 37 + 5, then reverse the result string.")
+print(response.text)
+```
+
+Simon ships a minimal example server in `simon/tools/builtin/mcp_example_server.py` with two tools for local testing:
+
+| Tool | Description |
+|---|---|
+| `add_numbers(a, b)` | Returns `a + b` |
+| `reverse_string(text)` | Reverses the characters in `text` |
+
+**Requirements:** install the `[mcp]` extra before using `MCPClient`:
+
+```bash
+pip install -e ".[mcp]"
+```
+
+- `MCPClient(command)` accepts any list of strings — the same format as Python's `subprocess` (e.g. `["npx", "-y", "@my/mcp-server"]`).
+- Each tool call opens a fresh stdio connection to the server, so the server does not need to stay running between calls.
+- `get_tools()` is synchronous; `get_tools_async()` is available for async contexts.
+
+---
+
 ### Persistent Memory
 
 **File:** [examples/persistent_memory_agent.py](examples/persistent_memory_agent.py)
@@ -572,8 +624,9 @@ simon/
 ├── router/         # ModelRouter — provider selection logic
 ├── tui.py          # Terminal chat UI with Markdown rendering (stdlib only)
 └── tools/
-    ├── tool.py     # @tool decorator + ToolRegistry
-    └── builtin/    # datetime_now, fs_*, shell_run, web_search, http_get
+    ├── tool.py        # @tool decorator + ToolRegistry
+    ├── mcp_client.py  # MCPClient — connect to any MCP server and load its tools
+    └── builtin/       # datetime_now, fs_*, shell_run, web_search, http_get + mcp_example_server
 ```
 
 ### Core concepts
@@ -584,7 +637,8 @@ simon/
 4. **`Memory`** — pluggable conversation history. `InMemoryMemory` (default, in-process list) or `JSONFileMemory` (persisted to `.simon_chats/<name>.json`). Implement `BaseMemory` to add your own backend.
 5. **`KnowledgeBase`** — ingest documents, chunk them, embed with the provider set via `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL`, and retrieve by cosine similarity at query time. Index files are stored in `.simon_knowledge/`.
 6. **`@tool`** — a decorator that turns any typed Python function into a callable tool with an auto-generated JSON schema.
-7. **`ModelRouter`** — selects the right provider at runtime based on available API keys, the `DEFAULT_MODEL` env var, and a simple task-complexity heuristic.
+7. **`MCPClient`** — connects to an external MCP server via stdio, lists its tools, and wraps each as a `Tool` compatible with `Agent(tools=[...])`. Requires `pip install -e ".[mcp]"`.
+8. **`ModelRouter`** — selects the right provider at runtime based on available API keys, the `DEFAULT_MODEL` env var, and a simple task-complexity heuristic.
 
 ### Async support
 
@@ -618,6 +672,6 @@ The following are intentionally out of scope:
 
 - Workflow engines and event buses
 - Distributed execution
-- MCP integration
+- Full MCP server hosting (only client-side consumption is supported)
 - Docker / Kubernetes requirements
 - Enterprise features (auth, RBAC, audit logs, …)

@@ -122,6 +122,21 @@
       "envFile": "${workspaceFolder}/.env"
     },
     {
+      "name": "Simon: MCP Agent Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/mcp_agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
       "name": "Simon: Triage Agent Example",
       "type": "python",
       "request": "launch",
