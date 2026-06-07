@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     ollama_model: str | None = None
     default_model: str = "auto"
     knowledge_store_path: str | None = None
+    embedding_provider: str = "OPENAI"
     embedding_model: str = "text-embedding-3-small"
     enable_dir_documents: bool = True
     enable_dir_downloads: bool = True

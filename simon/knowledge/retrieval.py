@@ -25,10 +25,14 @@ class FileRetriever:
     def _key(self, source: str) -> str:
         return hashlib.sha256(source.encode()).hexdigest()[:16]
 
-    def add_source(self, texts: list[str], source: str) -> None:
+    def add_source(self, texts: list[str], source: str, force: bool = False) -> None:
         key = self._key(source)
         if key in self._matrices:
-            return
+            if not force:
+                return
+            (self._store / f"{key}.npy").unlink(missing_ok=True)
+            (self._store / f"{key}.meta").unlink(missing_ok=True)
+            del self._matrices[key]
 
         vectors = self._embeddings.embed_batch(texts)
         matrix = np.array(vectors, dtype=np.float32)

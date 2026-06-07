@@ -28,7 +28,7 @@ def test_knowledge_ingestion_and_search(tmp_path: Path) -> None:
     vec = _unit_vec([1.0, 0.0, 0.0] + [0.0] * 1533)
     mock_emb = _make_mock_embeddings(vec)
 
-    with patch("simon.knowledge.knowledge.OpenAIEmbeddings", return_value=mock_emb):
+    with patch("simon.knowledge.embeddings.default_embeddings", return_value=mock_emb):
         kb = KnowledgeBase(chunk_size=40, overlap=5, store_path=str(tmp_path / "store"))
         count = kb.add(str(doc))
 

@@ -7,7 +7,7 @@ def test_router_default_is_model() -> None:
     assert model is not None
 
 
-def test_router_explicit_prefixes(monkeypatch) -> None:
+def test_router_explicit_labels(monkeypatch) -> None:
     monkeypatch.setattr("simon.router.router.settings.openai_api_key", "test-key")
     monkeypatch.setattr("simon.router.router.settings.openai_model", "gpt-5")
     monkeypatch.setattr("simon.router.router.settings.anthropic_api_key", "test-key")
@@ -17,9 +17,9 @@ def test_router_explicit_prefixes(monkeypatch) -> None:
     monkeypatch.setattr("simon.router.router.settings.ollama_model", "llama3.1")
     monkeypatch.setenv("OLLAMA_HOST", "http://localhost:11434")
 
-    assert isinstance(ModelRouter().resolve("gpt-5"), OpenAIModel)
-    assert isinstance(ModelRouter().resolve("claude-3-5-sonnet-latest"), AnthropicModel)
-    assert isinstance(ModelRouter().resolve("llama3.1"), OllamaModel)
+    assert isinstance(ModelRouter().resolve("openai_model"), OpenAIModel)
+    assert isinstance(ModelRouter().resolve("ANTHROPIC_MODEL"), AnthropicModel)
+    assert isinstance(ModelRouter().resolve("Ollama_Model"), OllamaModel)
 
 
 def test_echo_model_type() -> None:
@@ -95,7 +95,7 @@ def test_router_uses_openai_model_from_settings(monkeypatch) -> None:
 
 
 def test_router_forces_default_model_provider_when_non_auto(monkeypatch) -> None:
-    monkeypatch.setattr("simon.router.router.settings.default_model", "gpt-5")
+    monkeypatch.setattr("simon.router.router.settings.default_model", "OPENAI_MODEL")
     monkeypatch.setattr("simon.router.router.settings.openai_api_key", "test-key")
     monkeypatch.setattr("simon.router.router.settings.openai_model", "gpt-5.4-mini")
     monkeypatch.setattr("simon.router.router.settings.ollama_model", "gemma4:e4b")
@@ -106,7 +106,7 @@ def test_router_forces_default_model_provider_when_non_auto(monkeypatch) -> None
 
 
 def test_router_forced_default_model_does_not_fallback(monkeypatch) -> None:
-    monkeypatch.setattr("simon.router.router.settings.default_model", "gpt-5")
+    monkeypatch.setattr("simon.router.router.settings.default_model", "OPENAI_MODEL")
     monkeypatch.setattr("simon.router.router.settings.openai_api_key", "")
     monkeypatch.setattr("simon.router.router.settings.openai_model", "")
     monkeypatch.setattr("simon.router.router.settings.ollama_model", "gemma4:e4b")

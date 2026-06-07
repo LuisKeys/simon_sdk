@@ -48,6 +48,7 @@ Simon SDK is educational, lightweight, and easy to extend. It favors simplicity 
 | `openai` ≥ 1.40 | OpenAI provider + web search |
 | `anthropic` ≥ 0.34 | Anthropic/Claude provider |
 | `ollama` ≥ 0.3 | Local Ollama provider |
+| `voyageai` ≥ 0.2 | Anthropic embeddings via Voyage AI (optional) |
 | `pypdf` ≥ 4.2 | PDF ingestion for knowledge base |
 | `python-docx` ≥ 1.1 | Word document ingestion |
 | `openpyxl` ≥ 3.1 | Excel spreadsheet ingestion |
@@ -129,11 +130,19 @@ OLLAMA_HOST=http://localhost:11434
 OLLAMA_MODEL=llama3.1             # any model you have pulled locally
 
 # --- Routing ---
-# "auto"             → Simon picks the best available provider
-# "gpt-..."          → force OpenAI
-# "claude-..."       → force Anthropic
-# "ollama" / "llama" → force Ollama
-DEFAULT_MODEL=auto
+# AUTO             → Simon picks the best available provider
+# OPENAI_MODEL     → force OpenAI
+# ANTHROPIC_MODEL  → force Anthropic
+# OLLAMA_MODEL     → force Ollama
+# (case-insensitive)
+DEFAULT_MODEL=AUTO
+
+# --- Embeddings ---
+# OPENAI     → text-embedding-3-small / text-embedding-3-large / text-embedding-ada-002
+# OLLAMA     → nomic-embed-text:latest / mxbai-embed-large / any model pulled locally
+# ANTHROPIC  → voyage-3 / voyage-3-lite / voyage-code-3 (via Voyage AI, requires voyageai package)
+EMBEDDING_PROVIDER=OPENAI
+EMBEDDING_MODEL=text-embedding-3-small
 
 # --- Knowledge base — folders to auto-index (true/false) ---
 ENABLE_DIR_DOCUMENTS=true
@@ -168,7 +177,16 @@ When `DEFAULT_MODEL=auto` (the default), Simon selects a provider using these ru
 - A model name passed explicitly to `Agent(model=...)` always overrides the above.
 - If no provider is reachable, the `EchoModel` is used (returns the prompt unchanged — good for offline testing).
 
-You can also force a specific provider by setting `DEFAULT_MODEL` to a concrete model name, e.g. `DEFAULT_MODEL=gpt-4o-mini`.
+You can force a specific provider by setting `DEFAULT_MODEL` to one of the semantic labels:
+
+| Value | Provider forced |
+|---|---|
+| `AUTO` | Smart routing (default) |
+| `OPENAI_MODEL` | OpenAI (uses `OPENAI_MODEL`) |
+| `ANTHROPIC_MODEL` | Anthropic (uses `ANTHROPIC_MODEL`) |
+| `OLLAMA_MODEL` | Ollama (uses `OLLAMA_MODEL`) |
+
+Labels are **case-insensitive** — `ollama_model`, `OLLAMA_MODEL`, and `Ollama_Model` all work. If the forced provider is not configured (missing API key or model name), the router returns an `EchoModel` instead of falling back to another provider.
 
 ---
 
@@ -238,25 +256,44 @@ print(agent.run("What did I say my favorite topic is?"))
 
 **File:** [examples/knowledge_agent.py](examples/knowledge_agent.py)
 
+This example loads the *Attention Is All You Need* paper (PDF) and asks the agent to explain Transformer concepts in plain, jargon-free language.
+
 ```python
 from pathlib import Path
 from simon import Agent
 
-# Create a small demo document
-tmp_file = Path("knowledge_demo.txt")
-tmp_file.write_text(
-    "Reinforcement learning is about agents maximizing reward through interaction.",
-    encoding="utf-8",
-)
+PROMPT = """
+You are a friendly teacher explaining AI concepts to a curious 15-year-old.
+Using only the document you have been given, explain the following topics.
+Keep each answer under 3 sentences. Avoid all math and jargon — use simple
+real-world analogies wherever possible.
 
-agent = Agent()
-agent.knowledge.add(str(tmp_file))   # index a file (or pass a directory path)
-print(agent.run("What is reinforcement learning about?"))
+1. What is a Transformer model and what problem does it solve?
+2. What does "attention" mean in this context? Give a simple real-world analogy.
+3. What do the encoder and decoder do? (one sentence each)
+4. What is multi-head attention, in plain English?
+5. Why is positional encoding needed and how can we think about it simply?
+"""
+
+if __name__ == "__main__":
+    paper_path = Path(__file__).parent / "docs" / "attention_paper.pdf"
+
+    agent = Agent()
+    chunks = agent.knowledge.add(str(paper_path))
+    if chunks:
+        print(f"Indexed {chunks} chunks from {paper_path.name}\n")
+    else:
+        print(f"{paper_path.name} already indexed — skipping.\n")
+    # To force re-indexing: agent.knowledge.add(str(paper_path), force=True)
+    print(agent.run(PROMPT))
 ```
 
 - The knowledge base chunks text, generates embeddings, and stores them locally under `.simon_knowledge/`.
 - `knowledge.add()` accepts a **file path** or a **directory path**. Supported formats: `.txt`, `.md`, `.pdf`, `.docx`, `.xlsx`, `.pptx`.
+- PDF ingestion requires `pypdf >= 4.2` (included in the `pdf` extra: `pip install simon-sdk[pdf]`).
+- `knowledge.add()` skips files that are already indexed. Pass `force=True` to delete the existing index entry and re-process: `agent.knowledge.add(path, force=True)`.
 - At query time, the top-2 matching chunks are injected as a system context message.
+- The embeddings provider is controlled by `EMBEDDING_PROVIDER` and `EMBEDDING_MODEL` in `.env` (see [Provider Configuration](#provider-configuration)).
 - Which directories are auto-indexed is controlled per-folder via `.env` flags (see [Provider Configuration](#provider-configuration)). Pass `knowledge=False` to disable indexing entirely.
 
 ---
@@ -467,7 +504,7 @@ simon/
 2. **`AgentGroup`** — runs multiple `Agent` instances in parallel over the same prompt using `asyncio.gather`. Returns `dict[str, str]`.
 3. **`TriageAgent`** — a router agent that selects the right specialist for a task via an LLM call, then delegates the original prompt to that specialist.
 4. **`Memory`** — pluggable conversation history. Default: `InMemoryMemory` (in-process list). Implement `BaseMemory` to add persistence.
-5. **`KnowledgeBase`** — ingest documents, chunk them, embed with the configured provider, and retrieve by cosine similarity at query time. Index files are stored in `.simon_knowledge/`.
+5. **`KnowledgeBase`** — ingest documents, chunk them, embed with the provider set via `EMBEDDING_PROVIDER` / `EMBEDDING_MODEL`, and retrieve by cosine similarity at query time. Index files are stored in `.simon_knowledge/`.
 6. **`@tool`** — a decorator that turns any typed Python function into a callable tool with an auto-generated JSON schema.
 7. **`ModelRouter`** — selects the right provider at runtime based on available API keys, the `DEFAULT_MODEL` env var, and a simple task-complexity heuristic.
 

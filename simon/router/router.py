@@ -7,6 +7,13 @@ from simon.models import AnthropicModel, BaseModel, EchoModel, OllamaModel, Open
 class ModelRouter:
     """Lightweight model/provider selection with sensible defaults."""
 
+    _LABEL_MAP = {
+        "auto": "auto",
+        "openai_model": "openai",
+        "anthropic_model": "anthropic",
+        "ollama_model": "ollama",
+    }
+
     _COMPLEX_TASK_HINTS = (
         "complex",
         "difficult",
@@ -56,27 +63,29 @@ class ModelRouter:
         task: str | None = None,
         complex_task: bool | None = None,
     ) -> BaseModel:
-        default_selected = (settings.default_model or "auto").lower()
+        default_selected = self._LABEL_MAP.get(
+            (settings.default_model or "auto").lower(),
+            (settings.default_model or "auto").lower(),
+        )
         force_default_provider = model is None and default_selected != "auto"
-        selected = (model or default_selected).lower()
+        raw_selected = (model or default_selected).lower()
+        selected = self._LABEL_MAP.get(raw_selected, raw_selected)
         is_complex = (
             self._is_complex_task(task) if complex_task is None else complex_task
         )
 
-        if (
-            selected.startswith("gpt") or selected.startswith("openai")
-        ) and self._has_openai():
+        if selected == "openai" and self._has_openai():
             return OpenAIModel(model=settings.openai_model or "gpt-5")
-        if (
-            selected.startswith("claude") or selected.startswith("anthropic")
-        ) and self._has_anthropic():
+        if selected == "anthropic" and self._has_anthropic():
             return AnthropicModel(
                 model=settings.anthropic_model or "claude-3-5-sonnet-latest"
             )
-        if (
-            selected.startswith("ollama") or selected.startswith("llama")
-        ) and self._has_ollama():
+        if selected == "ollama" and self._has_ollama():
             return OllamaModel(model=settings.ollama_model or "llama3.1")
+
+        # If an explicit provider label was requested but that provider is not available, don't fallback.
+        if selected in ("openai", "anthropic", "ollama"):
+            return EchoModel()
 
         if is_complex:
             # For harder tasks, prioritize online providers when available.

@@ -37,7 +37,7 @@ class OllamaEmbeddings:
     """Dense semantic embeddings via a local Ollama server."""
 
     def __init__(self, model: str | None = None) -> None:
-        self._model = model or settings.ollama_model or "nomic-embed-text"
+        self._model = model or settings.embedding_model
         self._host = settings.ollama_host
 
     def embed(self, text: str) -> list[float]:
@@ -62,16 +62,43 @@ class OllamaEmbeddings:
         return [v / norm for v in vec]
 
 
-def default_embeddings():
-    """Return the best available embeddings provider.
+class AnthropicEmbeddings:
+    """Dense semantic embeddings via Voyage AI (Anthropic's recommended embeddings provider)."""
 
-    Prefers Ollama when a local server is configured; falls back to OpenAI.
-    """
-    if settings.ollama_host:
+    def __init__(self, model: str | None = None, api_key: str | None = None) -> None:
+        try:
+            import voyageai
+        except ImportError as exc:
+            raise RuntimeError(
+                "Install voyageai package to use AnthropicEmbeddings: pip install voyageai"
+            ) from exc
+
+        self._model = model or settings.embedding_model
+        self._client = voyageai.Client(api_key=api_key or settings.anthropic_api_key)
+
+    def embed(self, text: str) -> list[float]:
+        result = self._client.embed([text], model=self._model)
+        return self._normalize(result.embeddings[0])
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        result = self._client.embed(texts, model=self._model)
+        return [self._normalize(e) for e in result.embeddings]
+
+    @staticmethod
+    def _normalize(vec: list[float]) -> list[float]:
+        norm = math.sqrt(sum(v * v for v in vec)) or 1.0
+        return [v / norm for v in vec]
+
+
+def default_embeddings():
+    """Return the embeddings provider configured via EMBEDDING_PROVIDER."""
+    provider = settings.embedding_provider.upper()
+    if provider == "OLLAMA":
         return OllamaEmbeddings()
-    if settings.openai_api_key:
+    if provider == "ANTHROPIC":
+        return AnthropicEmbeddings()
+    if provider == "OPENAI":
         return OpenAIEmbeddings()
     raise RuntimeError(
-        "No embeddings provider available. "
-        "Set OPENAI_API_KEY or configure an Ollama server via OLLAMA_HOST."
+        f"Unknown EMBEDDING_PROVIDER '{provider}'. Valid values: OPENAI, OLLAMA, ANTHROPIC."
     )

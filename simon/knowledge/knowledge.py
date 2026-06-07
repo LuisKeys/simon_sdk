@@ -24,18 +24,22 @@ class KnowledgeBase:
             self._retriever = FileRetriever(default_embeddings(), self._store_path)
         return self._retriever
 
-    def add(self, path: str) -> int:
+    def add(self, path: str, force: bool = False) -> int:
         p = Path(path)
         if not p.exists():
             raise FileNotFoundError(f"Knowledge path not found: {path}")
 
+        retriever = self._get_retriever()
         files = [p] if p.is_file() else [f for f in p.rglob("*") if f.is_file()]
         count = 0
         for file in files:
+            key = retriever._key(str(file))
+            if key in retriever._matrices and not force:
+                continue
             text = self._read_file(file)
             chunks = self._chunk(text)
             if chunks:
-                self._get_retriever().add_source(chunks, source=str(file))
+                retriever.add_source(chunks, source=str(file), force=force)
                 count += len(chunks)
         return count
 
