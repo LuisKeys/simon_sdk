@@ -9,9 +9,16 @@ class BaseModel(ABC):
     @abstractmethod
     async def complete(
         self,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, object]],
         tools: list[dict[str, object]] | None = None,
     ) -> AgentResponse:
+        """Return the model's reply.
+
+        When ``tools`` are provided the model may request tool calls by
+        populating ``AgentResponse.tool_calls``; the Agent's ReAct loop runs
+        them and feeds the results back. Models that cannot call tools simply
+        leave ``tool_calls`` empty (the default), so the loop runs once.
+        """
         raise NotImplementedError
 
 

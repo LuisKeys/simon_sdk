@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from simon import Agent, chat
+from simon import Agent, Planner, chat
 
 
 def _cmd_chat(args: argparse.Namespace) -> int:
@@ -21,6 +21,12 @@ def _cmd_index(args: argparse.Namespace) -> int:
     agent = Agent()
     count = agent.add_knowledge(args.path)
     print(f"Indexed {count} chunk(s) from {args.path}")
+    return 0
+
+
+def _cmd_plan(args: argparse.Namespace) -> int:
+    planner = Planner(agent=Agent(model=args.model, knowledge=False))
+    planner.run(args.goal)
     return 0
 
 
@@ -43,6 +49,10 @@ def main(argv: list[str] | None = None) -> int:
     p_index = sub.add_parser("index", help="Index a file or folder into the knowledge base.")
     p_index.add_argument("path", help="File or directory path to index.")
     p_index.set_defaults(func=_cmd_index)
+
+    p_plan = sub.add_parser("plan", help="Decompose a goal into tasks and run them.")
+    p_plan.add_argument("goal", help="The goal to plan and execute.")
+    p_plan.set_defaults(func=_cmd_plan)
 
     args = parser.parse_args(argv)
     return args.func(args)

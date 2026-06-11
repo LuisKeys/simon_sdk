@@ -38,9 +38,11 @@ class Agent:
         knowledge: bool = True,
         name: str = "Simon",
         system_prompt: str | None = None,
+        max_steps: int = 6,
     ) -> None:
         self.name = name
         self.system_prompt = system_prompt
+        self.max_steps = max_steps
         self._router = ModelRouter()
         self._model_name = model
         if isinstance(memory, BaseMemory):
@@ -91,12 +93,43 @@ class Agent:
         if context:
             messages.append({"role": "system", "content": context})
 
+        schemas = self.tools.schemas()
         response = await with_retry(
-            lambda: model.complete(messages=messages, tools=self.tools.schemas()),
+            lambda: model.complete(messages=messages, tools=schemas),
             retries=settings.simon_max_retries,
             base_delay=settings.simon_retry_base_delay,
             timeout=settings.simon_request_timeout,
         )
+
+        # ReAct loop: while the model requests tools, run them and feed the
+        # results back until it produces a final answer (or max_steps is hit).
+        step = 0
+        while response.tool_calls and step < self.max_steps:
+            step += 1
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": response.text,
+                    "tool_calls": response.tool_calls,
+                }
+            )
+            for call in response.tool_calls:
+                logger.info("step %d | tool=%s", step, call.name)
+                result = self._run_tool(call)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": call.id,
+                        "name": call.name,
+                        "content": result,
+                    }
+                )
+            response = await with_retry(
+                lambda: model.complete(messages=messages, tools=schemas),
+                retries=settings.simon_max_retries,
+                base_delay=settings.simon_retry_base_delay,
+                timeout=settings.simon_request_timeout,
+            )
 
         if self.memory:
             await self.memory.add("assistant", response.text)
@@ -140,6 +173,24 @@ class Agent:
 
         result: Any = candidate(**args)
         return str(result)
+
+    def _run_tool(self, call: Any) -> str:
+        """Execute a model-requested tool call, returning its result as text.
+
+        Errors (unknown tool, bad args, exceptions) are returned as strings so
+        the model can see them and recover instead of the run crashing.
+        """
+
+        candidate = self.tools.get(call.name)
+        if candidate is None:
+            return (
+                f"Error: tool '{call.name}' not found. "
+                f"Available: {', '.join(self.tools.names())}"
+            )
+        try:
+            return str(candidate(**call.arguments))
+        except Exception as exc:  # noqa: BLE001 - surface error back to model
+            return f"Error running tool '{call.name}': {exc}"
 
     def add_knowledge(self, path: str) -> int:
         """Index a file or folder into the knowledge base."""

@@ -337,6 +337,56 @@ print(agent.run('tool:weather {"city": "Lima"}'))
 
 ---
 
+### Autonomous Tools (ReAct)
+
+The `tool:<name> {json}` syntax is an explicit shortcut. With a real provider
+(OpenAI or Anthropic) configured, the agent also runs an **autonomous ReAct
+loop**: you ask in plain language and the model decides which tools to call,
+sees their results, and keeps going until it has an answer.
+
+```python
+from simon import Agent
+from simon.tools.builtin import fs_list, fs_read
+
+agent = Agent(tools=[fs_list, fs_read], knowledge=False, max_steps=6)
+
+# No tool: prefix — the model chooses to call fs_list / fs_read itself.
+print(agent.run("List the files in the current directory and summarize them."))
+```
+
+- `max_steps` (default `6`) caps how many tool-calling rounds run before the
+  agent must return a final answer — a simple guard against infinite loops.
+- Tool errors (unknown tool, bad arguments, exceptions) are fed back to the
+  model as text so it can recover instead of crashing the run.
+- Providers without tool support (Ollama, the no-key Echo fallback) simply
+  skip the loop and answer in one shot.
+
+---
+
+### Planner
+
+**File:** [examples/planner_agent.py](examples/planner_agent.py)
+
+The `Planner` breaks a goal into an ordered task list, prints it as a live
+checklist, and runs each task through an `Agent` — updating the status from
+pending (○) to in-progress (◐) to done (✓) as it goes.
+
+```python
+from simon import Agent, Planner
+
+planner = Planner(agent=Agent(knowledge=False))
+tasks = planner.run("Plan a short blog post about why Python is great for beginners")
+
+for task in tasks:
+    print(task.status, task.description, "->", task.result)
+```
+
+- Pass `on_update=callback` to render the checklist your own way instead of
+  printing it.
+- From the CLI: `simon plan "research X and summarize it"`.
+
+---
+
 ### Built-in Tools
 
 **File:** [examples/builtin_tools_agent.py](examples/builtin_tools_agent.py)
@@ -574,6 +624,9 @@ simon ask "What is gradient descent?"
 # Index a file or folder into the knowledge base
 simon index ./docs/
 
+# Decompose a goal into tasks and run them as a live checklist
+simon plan "research the pros and cons of microservices and summarize them"
+
 # Force a specific provider for any command
 simon --model OPENAI_MODEL ask "Summarize this in one sentence."
 ```
@@ -583,6 +636,7 @@ simon --model OPENAI_MODEL ask "Summarize this in one sentence."
 | `simon chat` | Launches the interactive terminal UI |
 | `simon ask "<prompt>"` | Single prompt, prints response, exits |
 | `simon index <path>` | Indexes a file or directory into the knowledge base |
+| `simon plan "<goal>"` | Breaks a goal into tasks and runs each as a checklist |
 
 ---
 

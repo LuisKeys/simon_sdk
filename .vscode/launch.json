@@ -152,6 +152,21 @@
       "envFile": "${workspaceFolder}/.env"
     },
     {
+      "name": "Simon: Planner Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/planner_agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
       "name": "Simon: Pytest Multi-Agent",
       "type": "python",
       "request": "launch",
