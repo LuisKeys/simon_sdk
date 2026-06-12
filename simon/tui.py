@@ -17,16 +17,21 @@ _YELLOW = "\033[93m"
 _DIM = "\033[2m"
 _RED = "\033[91m"
 
+
 def _render_md(text: str) -> str:
     """Convert a subset of Markdown to ANSI-styled terminal output."""
-    lines = text.split("\n")
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     out: list[str] = []
     in_code_block = False
 
     for line in lines:
         if line.startswith("```"):
             in_code_block = not in_code_block
-            out.append(f"{_DIM}{'─' * 40}{_RESET}" if in_code_block else f"{_DIM}{'─' * 40}{_RESET}")
+            out.append(
+                f"{_DIM}{'─' * 40}{_RESET}"
+                if in_code_block
+                else f"{_DIM}{'─' * 40}{_RESET}"
+            )
             continue
 
         if in_code_block:
@@ -49,13 +54,21 @@ def _render_md(text: str) -> str:
             line = re.sub(r"^(\s*)[-*] ", r"\1• ", line)
 
         # Inline: **bold** or __bold__
-        line = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: f"{_BOLD}{m.group(1) or m.group(2)}{_RESET}", line)
+        line = re.sub(
+            r"\*\*(.+?)\*\*|__(.+?)__",
+            lambda m: f"{_BOLD}{m.group(1) or m.group(2)}{_RESET}",
+            line,
+        )
         # Inline: *italic* or _italic_ (single, not preceded/followed by word char)
-        line = re.sub(r"(?<!\w)\*(?!\s)(.+?)(?<!\s)\*(?!\w)|(?<!\w)_(?!\s)(.+?)(?<!\s)_(?!\w)", lambda m: f"{_DIM}{m.group(1) or m.group(2)}{_RESET}", line)
+        line = re.sub(
+            r"(?<!\w)\*(?!\s)(.+?)(?<!\s)\*(?!\w)|(?<!\w)_(?!\s)(.+?)(?<!\s)_(?!\w)",
+            lambda m: f"{_DIM}{m.group(1) or m.group(2)}{_RESET}",
+            line,
+        )
         # Inline: `code`
         line = re.sub(r"`([^`]+)`", lambda m: f"{_CYAN}{m.group(1)}{_RESET}", line)
 
-        out.append(line)
+        out.append(line.rstrip())
 
     return "\n".join(out)
 
@@ -107,17 +120,17 @@ def _read_line(prompt: str) -> str:
                 if hints_visible:
                     sys.stdout.write(_CR + _EL + _UP + _CR + _EL)
                     hints_visible = False
-                sys.stdout.write("\n")
+                sys.stdout.write("\r\n")
                 sys.stdout.flush()
                 break
 
             elif ch == "\x03":  # Ctrl+C
-                sys.stdout.write("\n")
+                sys.stdout.write("\r\n")
                 sys.stdout.flush()
                 raise KeyboardInterrupt
 
             elif ch == "\x04":  # Ctrl+D / EOF
-                sys.stdout.write("\n")
+                sys.stdout.write("\r\n")
                 sys.stdout.flush()
                 raise EOFError
 
@@ -131,7 +144,11 @@ def _read_line(prompt: str) -> str:
                         # fill up to the longest common prefix
                         common = os.path.commonprefix(matches)
                         buf = list(common)
-                    hints = [c for c in _ALL_COMMANDS if c.startswith("".join(buf))] if "".join(buf).startswith("/") else []
+                    hints = (
+                        [c for c in _ALL_COMMANDS if c.startswith("".join(buf))]
+                        if "".join(buf).startswith("/")
+                        else []
+                    )
                     _redraw(hints)
 
             elif ch in ("\x7f", "\x08"):  # Backspace
@@ -178,7 +195,7 @@ def chat(
         f"\n{_YELLOW}{_BOLD}{'─' * 48}{_RESET}\n"
         f"{_YELLOW}{_BOLD}  {agent.name}{_RESET}\n"
         f"{_YELLOW}{_BOLD}{'─' * 48}{_RESET}\n"
-        f"{_DIM}  /exit  to quit  |  /clear  to clear screen{_RESET}\n"
+        f"{_DIM}  /quit  to quit  |  /clear  to clear screen{_RESET}\n"
     )
 
     try:
@@ -202,7 +219,9 @@ def chat(
             try:
                 response: AgentResponse = agent.run(user_input)
                 rendered = _render_md(response.text)
-                print(f"\n{_GREEN}{_BOLD}[{agent.name}]{_RESET} {rendered}\n")
+                indent = "  "
+                indented = rendered.replace("\n", f"\n{indent}")
+                print(f"\n{_GREEN}{_BOLD}[{agent.name}]{_RESET}\n{indent}{indented}\n")
                 if response.usage:
                     u = response.usage
                     print(
