@@ -1,4 +1,5 @@
 from simon.agent.response import AgentResponse
+from simon.exceptions import ProviderError
 from simon.models.base import BaseModel
 
 
@@ -15,7 +16,7 @@ class OllamaModel(BaseModel):
         try:
             from ollama import AsyncClient
         except ImportError as exc:
-            raise RuntimeError("Install ollama package to use OllamaModel.") from exc
+            raise ProviderError("Install ollama package to use OllamaModel.") from exc
 
         client = AsyncClient()
         response = await client.chat(model=self.model, messages=messages)

@@ -13,6 +13,7 @@ async def with_retry(
     retries: int = 2,
     base_delay: float = 0.5,
     timeout: float | None = 60.0,
+    on_retry: Callable[[int, BaseException], None] | None = None,
 ) -> T:
     """Run an awaitable with a per-attempt timeout and exponential backoff.
 
@@ -20,6 +21,9 @@ async def with_retry(
     coroutine can only be awaited once. It is retried up to ``retries`` extra
     times (so ``retries + 1`` total attempts) on timeout or any exception,
     waiting ``base_delay * 2**n`` seconds between attempts.
+
+    ``on_retry`` is called with ``(attempt_number, exception)`` just before
+    each retry sleep, useful for observability hooks.
     """
 
     attempts = retries + 1
@@ -42,6 +46,11 @@ async def with_retry(
                 exc,
                 delay,
             )
+            if on_retry is not None:
+                try:
+                    on_retry(attempt + 1, exc)
+                except Exception:
+                    pass
             await asyncio.sleep(delay)
 
     assert last_exc is not None

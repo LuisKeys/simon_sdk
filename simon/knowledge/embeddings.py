@@ -1,6 +1,7 @@
 import math
 
 from simon.config.settings import settings
+from simon.exceptions import KnowledgeError
 
 
 class OpenAIEmbeddings:
@@ -50,7 +51,7 @@ class OllamaEmbeddings:
         try:
             from ollama import Client
         except ImportError as exc:
-            raise RuntimeError("Install ollama package to use OllamaEmbeddings.") from exc
+            raise KnowledgeError("Install ollama package to use OllamaEmbeddings.") from exc
 
         client = Client(host=self._host)
         response = client.embeddings(model=self._model, prompt=text)
@@ -69,7 +70,7 @@ class AnthropicEmbeddings:
         try:
             import voyageai
         except ImportError as exc:
-            raise RuntimeError(
+            raise KnowledgeError(
                 "Install voyageai package to use AnthropicEmbeddings: pip install voyageai"
             ) from exc
 
@@ -99,6 +100,6 @@ def default_embeddings():
         return AnthropicEmbeddings()
     if provider == "OPENAI":
         return OpenAIEmbeddings()
-    raise RuntimeError(
+    raise KnowledgeError(
         f"Unknown EMBEDDING_PROVIDER '{provider}'. Valid values: OPENAI, OLLAMA, ANTHROPIC."
     )

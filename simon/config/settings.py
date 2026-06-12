@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     simon_max_retries: int = 2
     simon_request_timeout: float = 60.0
     simon_retry_base_delay: float = 0.5
+    simon_structured_retries: int = 2
 
     def model_post_init(self, __context: object) -> None:
         if self.simon_logging_enabled:

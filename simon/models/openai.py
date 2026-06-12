@@ -1,6 +1,7 @@
 import json
 
 from simon.agent.response import AgentResponse, ToolCall, Usage
+from simon.exceptions import ProviderError
 from simon.models.base import BaseModel
 from simon.config import settings
 
@@ -59,7 +60,7 @@ class OpenAIModel(BaseModel):
         try:
             from openai import AsyncOpenAI
         except ImportError as exc:
-            raise RuntimeError("Install openai package to use OpenAIModel.") from exc
+            raise ProviderError("Install openai package to use OpenAIModel.") from exc
 
         client = AsyncOpenAI(api_key=settings.openai_api_key)
         kwargs: dict[str, object] = {

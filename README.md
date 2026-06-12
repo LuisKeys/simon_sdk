@@ -27,9 +27,12 @@ Simon SDK is educational, lightweight, and easy to extend. It favors simplicity 
   - [Chat TUI](#chat-tui)
   - [Persistent Memory](#persistent-memory)
   - [MCP Agent](#mcp-agent)
+  - [Structured Output](#structured-output)
+  - [Hooks & Usage Tracking](#hooks--usage-tracking)
 - [Reliability — Retry and Timeout](#reliability--retry-and-timeout)
 - [CLI](#cli)
-- [Structured Responses and Token Usage](#structured-responses-and-token-usage)
+- [AgentResponse and Token Usage](#agentresponse-and-token-usage)
+- [Error Handling](#error-handling)
 - [Architecture](#architecture)
 - [Running the tests](#running-the-tests)
 
@@ -564,6 +567,86 @@ pip install -e ".[mcp]"
 
 ---
 
+### Structured Output
+
+**File:** [examples/structured_output_agent.py](examples/structured_output_agent.py)
+
+Ask the agent to return data as a validated Pydantic model instead of free text.
+
+```python
+from pydantic import BaseModel
+from simon import Agent
+
+class Recipe(BaseModel):
+    title: str
+    ingredients: list[str]
+    steps: list[str]
+    prep_time_minutes: int
+
+agent = Agent(knowledge=False)
+response = agent.run("Give me a simple pancake recipe", output_model=Recipe)
+
+recipe: Recipe = response.parsed
+print(recipe.title)
+print(recipe.prep_time_minutes)
+```
+
+- Pass any Pydantic model class as `output_model=` to `agent.run()`.
+- The JSON schema is injected as a system message; the model is instructed to return only the raw JSON object.
+- Common LLM decorations (` ```json ``` ` fences, leading prose) are stripped automatically before validation.
+- If the output is invalid, Simon re-prompts up to `SIMON_STRUCTURED_RETRIES` times (default `2`) with the validation error, giving the model a chance to self-correct.
+- If all retries are exhausted a `StructuredOutputError` is raised — catch it to inspect `.raw_text` and `.attempts`.
+- `response.text` and all other `AgentResponse` fields are still set normally.
+
+```python
+from simon import StructuredOutputError
+
+try:
+    response = agent.run("...", output_model=MyModel)
+except StructuredOutputError as e:
+    print(f"Failed after {e.attempts} attempts. Raw output: {e.raw_text}")
+```
+
+---
+
+### Hooks & Usage Tracking
+
+**File:** [examples/hooks_agent.py](examples/hooks_agent.py)
+
+Observe what happens inside each agent run without changing how the agent works.
+
+```python
+from simon import Agent, AgentEvent
+
+def on_event(event: AgentEvent) -> None:
+    if event.type == "model_selected":
+        print(f"Provider: {event.data['model']}")
+    elif event.type == "tool_called":
+        print(f"Tool: {event.data['tool']} → {event.data['result'][:60]}")
+    elif event.type == "response_received":
+        print(f"Done in {event.data['latency']:.2f}s")
+
+agent = Agent(knowledge=False, on_event=on_event)
+agent.run("What is 2 + 2?")
+
+# Accumulated token usage across all runs
+print(agent.total_usage)   # Usage(input_tokens=..., output_tokens=..., total_tokens=...)
+```
+
+**Event types:**
+
+| `event.type` | `event.data` keys | When |
+|---|---|---|
+| `model_selected` | `model`, `model_id` | Provider resolved, before first LLM call |
+| `tool_called` | `tool`, `arguments`, `result` (truncated to 200 chars) | After each tool executes in the ReAct loop |
+| `retry_attempted` | `attempt`, `error` | Before each retry sleep in `with_retry` |
+| `response_received` | `latency`, `usage`, `steps` | Final response ready |
+
+- `Agent.total_usage` — a `Usage` dataclass that accumulates tokens across **all** `run()` calls on this agent instance, including intermediate ReAct tool-loop calls. Multiply by your provider's per-token rate to compute cost.
+- A buggy `on_event` callback never crashes the run — exceptions are swallowed and logged at `WARNING` level.
+
+---
+
 ### Persistent Memory
 
 **File:** [examples/persistent_memory_agent.py](examples/persistent_memory_agent.py)
@@ -640,9 +723,9 @@ simon --model OPENAI_MODEL ask "Summarize this in one sentence."
 
 ---
 
-## Structured Responses and Token Usage
+## AgentResponse and Token Usage
 
-`agent.run()` now returns an `AgentResponse` object instead of a plain string.
+`agent.run()` returns an `AgentResponse` object.
 
 ```python
 from simon import Agent
@@ -650,15 +733,61 @@ from simon import Agent
 agent = Agent()
 response = agent.run("Explain gradient descent in one sentence.")
 
-print(response)            # str() returns the text, so existing code is unchanged
-print(response.text)       # same as above, explicit
-print(response.usage)      # Usage(input_tokens=..., output_tokens=..., total_tokens=...)
+print(response)              # __str__ returns .text — existing code unchanged
+print(response.text)         # the assistant's reply
+print(response.usage)        # Usage(input_tokens=..., output_tokens=..., total_tokens=...)
+print(response.parsed)       # validated Pydantic instance when output_model= was used
 ```
 
-- `AgentResponse.text` — the assistant's reply.
-- `AgentResponse.usage` — a `Usage` dataclass with `input_tokens`, `output_tokens`, and `total_tokens`. Returns `None` for providers that do not report usage (Ollama, Echo).
-- `__str__` is implemented, so passing a response directly to `print()` or string formatting works without changes to existing code.
-- Structured logging is opt-in via `.env`. Set `SIMON_LOGGING_ENABLED=true` and optionally `SIMON_LOG_LEVEL=DEBUG` (or `INFO` / `WARNING`). Each `run()` call logs model name, latency, and token counts at the chosen level.
+| Field | Type | Description |
+|---|---|---|
+| `text` | `str` | The assistant's reply |
+| `usage` | `Usage \| None` | Token counts; `None` for Ollama and Echo |
+| `tool_calls` | `list[ToolCall]` | Tool invocations requested by the model |
+| `stop_reason` | `str \| None` | Provider stop reason (`"stop"`, `"tool_calls"`, …) |
+| `parsed` | `Any \| None` | Validated Pydantic instance when `output_model=` was used |
+
+`agent.total_usage` accumulates `Usage` across every `run()` call on that agent instance (including ReAct intermediate calls). Use it to track spend:
+
+```python
+# Cost estimate example (OpenAI gpt-4o-mini rates as of 2025)
+cost = agent.total_usage.input_tokens * 0.00000015 + agent.total_usage.output_tokens * 0.00000060
+print(f"Estimated cost: ${cost:.6f}")
+```
+
+Structured logging is opt-in via `.env`. Set `SIMON_LOGGING_ENABLED=true` and optionally `SIMON_LOG_LEVEL=DEBUG` (or `INFO` / `WARNING`). Each `run()` call logs model name, latency, and token counts at the chosen level.
+
+---
+
+## Error Handling
+
+Simon raises its own exception hierarchy — all subclasses of `SimonError` — so you can catch everything Simon raises with a single `except SimonError` clause, or target specific categories:
+
+```python
+from simon import SimonError, ProviderError, ToolError, KnowledgeError, StructuredOutputError
+
+try:
+    response = agent.run("...", output_model=MyModel)
+except StructuredOutputError as e:
+    # Model never produced valid JSON after all retries
+    print(f"Raw output: {e.raw_text} ({e.attempts} attempts)")
+except ProviderError:
+    # Provider package not installed, or API unreachable
+    ...
+except KnowledgeError:
+    # Knowledge base ingestion problem (missing package, bad path, …)
+    ...
+except ToolError:
+    # Malformed tool call arguments
+    ...
+except SimonError:
+    # Catch-all for any other Simon error
+    ...
+```
+
+All Simon exceptions use **dual inheritance** — `ProviderError` is both a `SimonError` and a `RuntimeError`, `ToolError` is both a `SimonError` and a `ValueError` — so existing code that catches `RuntimeError` or `ValueError` continues to work without changes.
+
+Simon is also PEP 561-compliant: a `py.typed` marker is included so type checkers (mypy, pyright) pick up its inline type annotations automatically.
 
 ---
 
@@ -666,17 +795,22 @@ print(response.usage)      # Usage(input_tokens=..., output_tokens=..., total_to
 
 ```
 simon/
-├── agent/          # Agent — the single-agent entry point
-│   └── response.py # AgentResponse + Usage dataclasses
-├── cli.py          # `simon` CLI entry point (chat / ask / index)
-├── config/         # Settings loaded from .env via pydantic-settings
-├── knowledge/      # Chunking, embedding, and retrieval (numpy-backed)
-├── memory/         # BaseMemory, InMemoryMemory, JSONFileMemory
-├── models/         # Provider wrappers: OpenAI, Anthropic, Ollama, Echo
-├── multi/          # Multi-agent: AgentGroup (parallel) + TriageAgent (router)
-├── reliability.py  # with_retry — exponential backoff + per-attempt timeout
-├── router/         # ModelRouter — provider selection logic
-├── tui.py          # Terminal chat UI with Markdown rendering (stdlib only)
+├── agent/
+│   ├── agent.py      # Agent — single-agent entry point
+│   ├── events.py     # AgentEvent dataclass (hooks system)
+│   ├── response.py   # AgentResponse + Usage dataclasses
+│   └── structured.py # schema_instruction + parse_structured (structured output)
+├── cli.py            # `simon` CLI entry point (chat / ask / index / plan)
+├── config/           # Settings loaded from .env via pydantic-settings
+├── exceptions.py     # SimonError hierarchy (ProviderError, ToolError, KnowledgeError, StructuredOutputError)
+├── knowledge/        # Chunking, embedding, and retrieval (numpy-backed)
+├── memory/           # BaseMemory, InMemoryMemory, JSONFileMemory
+├── models/           # Provider wrappers: OpenAI, Anthropic, Ollama, Echo
+├── multi/            # Multi-agent: AgentGroup (parallel) + TriageAgent (router)
+├── py.typed          # PEP 561 marker — enables inline type checking
+├── reliability.py    # with_retry — exponential backoff + per-attempt timeout
+├── router/           # ModelRouter — provider selection logic
+├── tui.py            # Terminal chat UI with Markdown rendering (stdlib only)
 └── tools/
     ├── tool.py        # @tool decorator + ToolRegistry
     ├── mcp_client.py  # MCPClient — connect to any MCP server and load its tools
@@ -685,7 +819,7 @@ simon/
 
 ### Core concepts
 
-1. **`Agent`** — the single-agent entry point. Wires memory, knowledge, tools, and a model together.
+1. **`Agent`** — the single-agent entry point. Wires memory, knowledge, tools, and a model together. Accepts `on_event=` for observability and exposes `total_usage` for cumulative token tracking.
 2. **`AgentGroup`** — runs multiple `Agent` instances in parallel over the same prompt using `asyncio.gather`. Returns `dict[str, str]`.
 3. **`TriageAgent`** — a router agent that selects the right specialist for a task via an LLM call, then delegates the original prompt to that specialist.
 4. **`Memory`** — pluggable conversation history. `InMemoryMemory` (default, in-process list) or `JSONFileMemory` (persisted to `.simon_chats/<name>.json`). Implement `BaseMemory` to add your own backend.
@@ -693,6 +827,8 @@ simon/
 6. **`@tool`** — a decorator that turns any typed Python function into a callable tool with an auto-generated JSON schema.
 7. **`MCPClient`** — connects to an external MCP server via stdio, lists its tools, and wraps each as a `Tool` compatible with `Agent(tools=[...])`. Requires `pip install -e ".[mcp]"`.
 8. **`ModelRouter`** — selects the right provider at runtime based on available API keys, the `DEFAULT_MODEL` env var, and a simple task-complexity heuristic.
+9. **`structured output`** — pass `output_model=MyPydanticModel` to `agent.run()` to get a validated instance back in `response.parsed`. Works with all providers via prompt injection + parse + auto-correction loop.
+10. **`SimonError` hierarchy** — `ProviderError`, `ToolError`, `KnowledgeError`, `StructuredOutputError` with dual inheritance so existing `except RuntimeError` / `except ValueError` callers are unaffected.
 
 ### Async support
 

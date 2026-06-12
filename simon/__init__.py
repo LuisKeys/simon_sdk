@@ -1,6 +1,15 @@
 """Simon SDK public API."""
 
 from simon.agent import Agent
+from simon.agent.events import AgentEvent
+from simon.agent.response import Usage
+from simon.exceptions import (
+    KnowledgeError,
+    ProviderError,
+    SimonError,
+    StructuredOutputError,
+    ToolError,
+)
 from simon.memory import BaseMemory, InMemoryMemory, JSONFileMemory
 from simon.multi import AgentGroup, TriageAgent
 from simon.planner import Planner, Task
@@ -20,4 +29,11 @@ __all__ = [
     "BaseMemory",
     "InMemoryMemory",
     "JSONFileMemory",
+    "AgentEvent",
+    "Usage",
+    "SimonError",
+    "ProviderError",
+    "ToolError",
+    "KnowledgeError",
+    "StructuredOutputError",
 ]

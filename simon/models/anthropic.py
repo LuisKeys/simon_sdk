@@ -1,4 +1,5 @@
 from simon.agent.response import AgentResponse, ToolCall, Usage
+from simon.exceptions import ProviderError
 from simon.models.base import BaseModel
 
 
@@ -62,7 +63,7 @@ class AnthropicModel(BaseModel):
         try:
             from anthropic import AsyncAnthropic
         except ImportError as exc:
-            raise RuntimeError(
+            raise ProviderError(
                 "Install anthropic package to use AnthropicModel."
             ) from exc
 

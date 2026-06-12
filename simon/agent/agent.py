@@ -2,9 +2,12 @@ import asyncio
 import json
 import logging
 import time
-from typing import Any
+from typing import Any, Callable
 
+from simon.agent.events import AgentEvent
 from simon.agent.response import AgentResponse, Usage
+from simon.agent.structured import parse_structured, schema_instruction
+from simon.exceptions import KnowledgeError, StructuredOutputError, ToolError
 from simon.knowledge import KnowledgeBase
 from simon.memory import BaseMemory, InMemoryMemory
 from simon.config import settings
@@ -39,12 +42,15 @@ class Agent:
         name: str = "Simon",
         system_prompt: str | None = None,
         max_steps: int = 6,
+        on_event: Callable[[AgentEvent], None] | None = None,
     ) -> None:
         self.name = name
         self.system_prompt = system_prompt
         self.max_steps = max_steps
         self._router = ModelRouter()
         self._model_name = model
+        self._on_event = on_event
+        self.total_usage = Usage(0, 0, 0)
         if isinstance(memory, BaseMemory):
             self.memory: BaseMemory | None = memory
         elif memory:
@@ -54,7 +60,19 @@ class Agent:
         self.tools = ToolRegistry(tools)
         self.knowledge = KnowledgeBase() if knowledge else None
 
-    def run(self, prompt: str) -> AgentResponse:
+    def _emit(self, type_: str, **data: Any) -> None:
+        if self._on_event is None:
+            return
+        try:
+            self._on_event(AgentEvent(type=type_, data=data))
+        except Exception:
+            logger.warning("on_event hook raised an exception; ignoring")
+
+    def _track_usage(self, response: AgentResponse) -> None:
+        if response.usage:
+            self.total_usage = self.total_usage + response.usage
+
+    def run(self, prompt: str, output_model: type | None = None) -> AgentResponse:
         """Synchronous convenience API for beginners."""
 
         try:
@@ -65,12 +83,13 @@ class Agent:
         except RuntimeError as exc:
             if "already running" in str(exc):
                 raise
-        return asyncio.run(self.run_async(prompt))
+        return asyncio.run(self.run_async(prompt, output_model=output_model))
 
-    async def run_async(self, prompt: str) -> AgentResponse:
+    async def run_async(self, prompt: str, output_model: type | None = None) -> AgentResponse:
         t0 = time.perf_counter()
         model = self._router.resolve(self._model_name, task=prompt)
         logger.debug("run started | model=%s prompt_len=%d", type(model).__name__, len(prompt))
+        self._emit("model_selected", model=type(model).__name__, model_id=getattr(model, "model", None))
 
         if self.memory:
             await self.memory.add("user", prompt)
@@ -80,6 +99,9 @@ class Agent:
 
         if self.system_prompt:
             messages = [{"role": "system", "content": self.system_prompt}] + messages
+
+        if output_model is not None:
+            messages.append({"role": "system", "content": schema_instruction(output_model)})
 
         tool_response = await self._maybe_call_tool(prompt)
         if tool_response is not None:
@@ -99,7 +121,9 @@ class Agent:
             retries=settings.simon_max_retries,
             base_delay=settings.simon_retry_base_delay,
             timeout=settings.simon_request_timeout,
+            on_retry=lambda attempt, exc: self._emit("retry_attempted", attempt=attempt, error=str(exc)),
         )
+        self._track_usage(response)
 
         # ReAct loop: while the model requests tools, run them and feed the
         # results back until it produces a final answer (or max_steps is hit).
@@ -116,6 +140,7 @@ class Agent:
             for call in response.tool_calls:
                 logger.info("step %d | tool=%s", step, call.name)
                 result = self._run_tool(call)
+                self._emit("tool_called", tool=call.name, arguments=call.arguments, result=result[:200])
                 messages.append(
                     {
                         "role": "tool",
@@ -129,7 +154,39 @@ class Agent:
                 retries=settings.simon_max_retries,
                 base_delay=settings.simon_retry_base_delay,
                 timeout=settings.simon_request_timeout,
+                on_retry=lambda attempt, exc: self._emit("retry_attempted", attempt=attempt, error=str(exc)),
             )
+            self._track_usage(response)
+
+        if output_model is not None:
+            for attempt in range(settings.simon_structured_retries + 1):
+                try:
+                    response.parsed = parse_structured(response.text, output_model)
+                    break
+                except Exception as exc:
+                    if attempt >= settings.simon_structured_retries:
+                        raise StructuredOutputError(
+                            f"Model output did not match {output_model.__name__} after {attempt + 1} attempt(s): {exc}",
+                            raw_text=response.text,
+                            attempts=attempt + 1,
+                        ) from exc
+                    messages.append({"role": "assistant", "content": response.text})
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                f"That was not valid JSON for the schema. Error: {exc}. "
+                                "Reply with ONLY the corrected JSON object, no prose."
+                            ),
+                        }
+                    )
+                    response = await with_retry(
+                        lambda: model.complete(messages=messages, tools=schemas),
+                        retries=settings.simon_max_retries,
+                        base_delay=settings.simon_retry_base_delay,
+                        timeout=settings.simon_request_timeout,
+                    )
+                    self._track_usage(response)
 
         if self.memory:
             await self.memory.add("assistant", response.text)
@@ -146,6 +203,7 @@ class Agent:
         else:
             logger.info("run completed | latency=%.2fs", elapsed)
 
+        self._emit("response_received", latency=elapsed, usage=response.usage, steps=step)
         return response
 
     async def _maybe_call_tool(self, prompt: str) -> str | None:
@@ -169,7 +227,7 @@ class Agent:
             )
 
         if not isinstance(args, dict):
-            raise ValueError("Tool arguments must be a JSON object.")
+            raise ToolError("Tool arguments must be a JSON object.")
 
         result: Any = candidate(**args)
         return str(result)
@@ -195,7 +253,7 @@ class Agent:
     def add_knowledge(self, path: str) -> int:
         """Index a file or folder into the knowledge base."""
         if self.knowledge is None:
-            raise RuntimeError("Agent was created with knowledge=False.")
+            raise KnowledgeError("Agent was created with knowledge=False.")
         return self.knowledge.add(path)
 
     def _knowledge_context(self, prompt: str) -> str:

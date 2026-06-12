@@ -1,6 +1,7 @@
 import urllib.request
 
 from simon.config.settings import settings
+from simon.exceptions import ToolError
 from simon.tools.tool import tool
 
 _MAX_BODY = 4000
@@ -12,7 +13,7 @@ def web_search(query: str) -> str:
     try:
         from openai import OpenAI
     except ImportError as exc:
-        raise RuntimeError("Install openai package to use web_search.") from exc
+        raise ToolError("Install openai package to use web_search.") from exc
 
     client = OpenAI(api_key=settings.openai_api_key)
     response = client.responses.create(

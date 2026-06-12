@@ -152,6 +152,36 @@
       "envFile": "${workspaceFolder}/.env"
     },
     {
+      "name": "Simon: Structured Output Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/structured_output_agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
+      "name": "Simon: Hooks & Usage Example",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/examples/hooks_agent.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "conda activate simon",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "python": "${command:python.interpreterPath}",
+      "envFile": "${workspaceFolder}/.env"
+    },
+    {
       "name": "Simon: Planner Example",
       "type": "python",
       "request": "launch",

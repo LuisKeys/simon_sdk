@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from simon.config.settings import settings
+from simon.exceptions import KnowledgeError
 
 
 class KnowledgeBase:
@@ -65,7 +66,7 @@ class KnowledgeBase:
             try:
                 from pypdf import PdfReader
             except ImportError as exc:
-                raise RuntimeError("Install pypdf to ingest PDF files.") from exc
+                raise KnowledgeError("Install pypdf to ingest PDF files.") from exc
             reader = PdfReader(str(path))
             return "\n".join(page.extract_text() or "" for page in reader.pages)
 
@@ -73,7 +74,7 @@ class KnowledgeBase:
             try:
                 import docx
             except ImportError as exc:
-                raise RuntimeError("Install python-docx to ingest Word files.") from exc
+                raise KnowledgeError("Install python-docx to ingest Word files.") from exc
             doc = docx.Document(str(path))
             return "\n".join(p.text for p in doc.paragraphs)
 
@@ -81,7 +82,7 @@ class KnowledgeBase:
             try:
                 import openpyxl
             except ImportError as exc:
-                raise RuntimeError("Install openpyxl to ingest Excel files.") from exc
+                raise KnowledgeError("Install openpyxl to ingest Excel files.") from exc
             wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
             lines = []
             for sheet in wb.worksheets:
@@ -95,7 +96,7 @@ class KnowledgeBase:
             try:
                 from pptx import Presentation
             except ImportError as exc:
-                raise RuntimeError("Install python-pptx to ingest PowerPoint files.") from exc
+                raise KnowledgeError("Install python-pptx to ingest PowerPoint files.") from exc
             prs = Presentation(str(path))
             lines = []
             for slide in prs.slides:
